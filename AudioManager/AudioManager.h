@@ -5,6 +5,7 @@
 #include<map>
 #include <vector>
 #include <atlbase.h>
+#include <atlstr.h>
 #include <mmdeviceapi.h>
 #include <functiondiscoverykeys_devpkey.h>
 #include <audiopolicy.h>
@@ -13,8 +14,8 @@
 // 音频控制对象类型定义
 template <class _TypeT>
 struct AUDIO_CONTROL_ENTITY {
-	WCHAR szId[MAX_PATH];
-	WCHAR szName[MAX_PATH];
+	CString strId;
+	CString strName;
 	_TypeT spObject;
 };
 
@@ -52,6 +53,10 @@ protected:
 	void GetDevices(EDataFlow dataFlow, std::map<std::wstring, CComPtr<IMMDevice>>& mapDevices);
 	// 获取所有会话
 	void GetAllSession();
+	// 根据进程ID获取窗口句柄
+	BOOL GetWindowTitleByProcessId(DWORD dwProcessId, CString& strTitle);
+	// 窗口枚举静态方法
+	static BOOL WndEnumProc(HWND hWnd, LPARAM lParam);
 
 protected:
 	// 输出设备

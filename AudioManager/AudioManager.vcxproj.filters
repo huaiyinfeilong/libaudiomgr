@@ -15,6 +15,20 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="framework.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
     <ClCompile Include="main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -23,8 +37,16 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AudioManager.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
+    <ResourceCompile Include="AudioManager.rc">
+      <Filter>资源文件</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="small.ico">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="AudioManager.ico">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
 </Project>

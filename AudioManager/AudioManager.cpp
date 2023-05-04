@@ -1,6 +1,18 @@
 #include "AudioManager.h"
 
 
+struct WNDENUMPROC_CONTEXT_DATA {
+	DWORD dwProcessId;
+	CString& strTitle;
+
+public:
+	WNDENUMPROC_CONTEXT_DATA(DWORD dwProcessId, CString& strTitle) :
+		strTitle(strTitle)
+	{
+		this->dwProcessId = dwProcessId;
+	}
+};
+
 // 初始化
 void AudioManager::Initialize()
 {
@@ -229,6 +241,13 @@ void AudioManager::GetAllSession()
 		std::cout << "Get device count failed." << std::endl;
 		return;
 	}
+	CComPtr<IMMDevice> spDefaultDevice;
+	hr = spDeviceEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &spDefaultDevice);
+	if (FAILED(hr))
+	{
+		std::cout << "Get default device failed." << std::endl;
+		return;
+	}
 	for (UINT i = 0; i < uDeviceCount; i++)
 	{
 		CComPtr<IMMDevice> spDevice;
@@ -239,7 +258,7 @@ void AudioManager::GetAllSession()
 			return;
 		}
 		CComPtr<IAudioSessionManager2> spSessionManager;
-		hr = spDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_ALL, NULL, reinterpret_cast<void**>(&spSessionManager));
+		hr = spDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_INPROC_SERVER, NULL, reinterpret_cast<void**>(&spSessionManager));
 		if (FAILED(hr))
 		{
 			std::cout << "Get AudioSessionManager2 failed." << std::endl;
@@ -275,11 +294,66 @@ void AudioManager::GetAllSession()
 				std::cout << "Get session2 failed." << std::endl;
 				continue;
 			}
+			if (spSession2->IsSystemSoundsSession() != S_FALSE)
+			{
+				LPWSTR lpwDefaultDeviceId = nullptr;
+				LPWSTR lpwCurrentDeviceId = nullptr;
+				hr = spDefaultDevice->GetId(&lpwDefaultDeviceId);
+				if (FAILED(hr))
+				{
+					std::cout << "Get default device id failed." << std::endl;
+					continue;
+				}
+				hr = spDevice->GetId(&lpwCurrentDeviceId);
+				if (FAILED(hr))
+				{
+					std::cout << "Get current device id failed." << std::endl;
+					CoTaskMemFree(lpwDefaultDeviceId);
+					continue;
+				}
+				if (_tcscmp(lpwDefaultDeviceId, lpwCurrentDeviceId))
+				{
+					CoTaskMemFree(lpwDefaultDeviceId);
+					CoTaskMemFree(lpwCurrentDeviceId);
+					continue;
+				}
+				CoTaskMemFree(lpwDefaultDeviceId);
+				CoTaskMemFree(lpwCurrentDeviceId);
+				AUDIO_CONTROL_SESSION_ENTITY entity;
+				LPWSTR lpwSessionId = nullptr;
+				hr = spSession2->GetSessionIdentifier(&lpwSessionId);
+				if (FAILED(hr) || lpwSessionId == nullptr)
+				{
+					continue;
+				}
+				entity.strId = lpwSessionId;
+				entity.strName = TEXT("系统音量");
+				entity.spObject = spSession;
+				_listSession.push_back(entity);
+				CoTaskMemFree(lpwSessionId);
+				continue;
+			}
 			DWORD dwProcessId = 0;
 			hr = spSession2->GetProcessId(&dwProcessId);
 			if (FAILED(hr))
 			{
 				std::cout << "Get process ID failed." << std::endl;
+				continue;
+			}
+			CString strTitle;
+			if (this->GetWindowTitleByProcessId(dwProcessId, strTitle))
+			{
+				AUDIO_CONTROL_SESSION_ENTITY entity;
+				LPWSTR lpwSessionId = nullptr;
+				spSession2->GetSessionIdentifier(&lpwSessionId);
+				if (lpwSessionId)
+				{
+					entity.strId = lpwSessionId;
+					CoTaskMemFree(lpwSessionId);
+				}
+				entity.strName = strTitle;
+				entity.spObject = spSession;
+				this->_listSession.push_back(entity);
 				continue;
 			}
 			DWORD dwLength = MAX_PATH;
@@ -307,13 +381,53 @@ void AudioManager::GetAllSession()
 				continue;
 			}
 			AUDIO_CONTROL_SESSION_ENTITY entity;
-			_tcsncpy_s(entity.szName, MAX_PATH, (left + 1), (int)(right - left - 1));
+			LPWSTR lpwDisplayName = nullptr;
+			hr = spSession2->GetDisplayName(&lpwDisplayName);
+			if (FAILED(hr || lpwDisplayName == nullptr))
+			{
+				std::cout << "Get display name failed." << std::endl;
+				continue;
+			}
+			entity.strName = lpwDisplayName;
+			CoTaskMemFree(lpwDisplayName);
+			left[right - left] = TEXT('\0');
+			entity.strName = (left + 1);
 			LPWSTR lpwSessionId = nullptr;
-			spSession2->GetSessionIdentifier(&lpwSessionId);
-			_tcscpy_s(entity.szId, MAX_PATH, lpwSessionId);
+			hr = spSession2->GetSessionIdentifier(&lpwSessionId);
+			if (FAILED(hr))
+			{
+				std::cout << "Get session id failed." << std::endl;
+				continue;
+			}
+			entity.strId = lpwSessionId;
 			CoTaskMemFree(lpwSessionId);
 			entity.spObject = spSession;
 			this->_listSession.push_back(entity);
 		}
 	}
+}
+
+
+// 通过进程ID获取窗口标题
+BOOL AudioManager::GetWindowTitleByProcessId(DWORD dwProcessId, CString& strTitle)
+{
+	WNDENUMPROC_CONTEXT_DATA context(dwProcessId, strTitle);
+	return EnumWindows(&AudioManager::WndEnumProc, (LPARAM)&context);
+}
+
+
+// 枚举窗口静态方法
+BOOL AudioManager::WndEnumProc(HWND hWnd, LPARAM lpParam)
+{
+	WNDENUMPROC_CONTEXT_DATA* context = (WNDENUMPROC_CONTEXT_DATA*)lpParam;
+	DWORD dwProcessId = 0;
+	GetWindowThreadProcessId(hWnd, &dwProcessId);
+	if (dwProcessId != 0 && dwProcessId == context->dwProcessId)
+	{
+		TCHAR szTitle[MAX_PATH] = { 0 };
+		GetWindowText(hWnd, szTitle, MAX_PATH);
+		context->strTitle = szTitle;
+		return TRUE;
+	}
+	return FALSE;
 }
