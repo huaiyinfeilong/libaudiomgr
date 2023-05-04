@@ -6,21 +6,16 @@
 
 int main()
 {
+	setlocale(LC_ALL, "");
 	AudioManager audioManager;
 	audioManager.Initialize();
-	UINT count = audioManager.GetPlaybackDeviceCount();
-	std::wcout << count << "个输出设备：" << std::endl;
+	UINT count = audioManager.GetSessionCount();
+	std::wcout << L"数量：" << count << std::endl;
 	for (UINT i = 0; i < count; i++)
 	{
-		std::wcout << audioManager.GetPlaybackDevice(i) << std::endl;
+		AUDIO_CONTROL_SESSION_ENTITY entity = audioManager.GetSession(i);
+		std::wcout << entity.szName << std::endl;
 	}
-	 count = audioManager.GetRecordingDeviceCount();
-	std::wcout << count << "个输入设备：" << std::endl;
-	for (UINT i = 0; i < count; i++)
-	{
-		std::wcout << audioManager.GetRecordingDevice(i) << std::endl;
-	}
-	audioManager.GetChannels();
 
 	return 0;
 }
