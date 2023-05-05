@@ -1,5 +1,4 @@
 ﻿// AudioManager.cpp : 定义应用程序的入口点。
-//
 
 #include "framework.h"
 #include "resource.h"
@@ -147,7 +146,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			for (UINT i = 0; i < uCount; i++)
 			{
 				AUDIO_CONTROL_SESSION_ENTITY entity = audioManager.GetSession(i);
-				MessageBox(GetForegroundWindow(), entity.strName, entity.strId, MB_OK);
+				MessageBox(GetForegroundWindow(), entity.strName, entity.strName, MB_OK);
 			}
 			audioManager.Uninitialize();
 		}

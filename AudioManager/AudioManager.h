@@ -53,6 +53,8 @@ protected:
 	void GetAllSession();
 	// 获取所有顶级窗口
 	BOOL GetWindows(std::map<DWORD, CString>& context);
+	// 获取会话名称
+	void GetSessionDisplayName(CComPtr<IAudioSessionControl2>& spSession, CString& strDisplayName);
 
 protected:
 	// 输出设备

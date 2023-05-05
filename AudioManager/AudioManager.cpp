@@ -3,6 +3,12 @@
 #include <oleacc.h>
 
 
+void MsgBox(LPCTSTR lpText)
+{
+	MessageBox(GetForegroundWindow(), lpText, TEXT(""), MB_OK);
+}
+
+
 // 初始化
 void AudioManager::Initialize()
 {
@@ -79,14 +85,14 @@ void AudioManager::GetDevices(EDataFlow dataFlow, std::vector<AUDIO_CONTROL_DEVI
 	hr = spEnumerator->EnumAudioEndpoints(dataFlow, eMultimedia, &spDevices);
 	if (FAILED(hr))
 	{
-		std::cout << "获取IMMDeviceCollection接口失败。" << std::endl;
+		ATLTRACE(_T("获取IMMDeviceCollection接口失败。"));
 		return;
 	}
 	UINT count = 0;
 	hr = spDevices->GetCount(&count);
 	if (FAILED(hr) || !count)
 	{
-		std::cout << "获取到0个设备。" << std::endl;
+		ATLTRACE(_T("获取到0个设备。"));
 		return;
 	}
 	for (UINT i = 0; i < count; i++)
@@ -95,14 +101,14 @@ void AudioManager::GetDevices(EDataFlow dataFlow, std::vector<AUDIO_CONTROL_DEVI
 		hr = spDevices->Item(i, &spDevice);
 		if (FAILED(hr))
 		{
-			std::cout << "获取IMMDevice接口失败。" << std::endl;
+			ATLTRACE(_T("获取IMMDevice接口失败。"));
 			continue;
 		}
 		CComPtr<IPropertyStore> spStore;
 		hr = spDevice->OpenPropertyStore(STGM_READ, &spStore);
 		if (FAILED(hr))
 		{
-			std::cout << "获取IPropertyStore接口失败。" << std::endl;
+			ATLTRACE(_T("获取IPropertyStore接口失败。"));
 			continue;
 		}
 		PROPVARIANT pv;
@@ -118,7 +124,7 @@ void AudioManager::GetDevices(EDataFlow dataFlow, std::vector<AUDIO_CONTROL_DEVI
 		}
 		else
 		{
-			std::cout << "PropertyVariant的vt不是VT_LPWSTR" << std::endl;
+			ATLTRACE(_T("PropertyVariant的vt不是VT_LPWSTR"));
 		}
 		PropVariantClear(&pv);
 		LPTSTR lpDeviceId = nullptr;
@@ -147,28 +153,28 @@ void AudioManager::GetAllSession()
 	hr = spDeviceEnumerator.CoCreateInstance(__uuidof(MMDeviceEnumerator));
 	if (FAILED(hr))
 	{
-		std::cout << "Get IMMDeviceEnumerator failed." << std::endl;
+		atlTraceAllocation(_T("Get IMMDeviceEnumerator failed."));
 		return;
 	}
 	CComPtr<IMMDeviceCollection> spDeviceCollection;
 	hr = spDeviceEnumerator->EnumAudioEndpoints(eRender, eMultimedia, &spDeviceCollection);
 	if (FAILED(hr))
 	{
-		std::cout << "Get IMMDeviceCollection failed." << std::endl;
+		ATLTRACE(_T("Get IMMDeviceCollection failed."));
 		return;
 	}
 	UINT uDeviceCount = 0;
 	hr = spDeviceCollection->GetCount(&uDeviceCount);
 	if (FAILED(hr) || uDeviceCount == 0)
 	{
-		std::cout << "Get device count failed." << std::endl;
+		ATLTRACE(_T("Get device count failed."));
 		return;
 	}
 	CComPtr<IMMDevice> spDefaultDevice;
 	hr = spDeviceEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &spDefaultDevice);
 	if (FAILED(hr))
 	{
-		std::cout << "Get default device failed." << std::endl;
+		ATLTRACE(_T("Get default device failed."));
 		return;
 	}
 	for (UINT i = 0; i < uDeviceCount; i++)
@@ -177,28 +183,28 @@ void AudioManager::GetAllSession()
 		hr = spDeviceCollection->Item(i, &spDevice);
 		if (FAILED(hr))
 		{
-			std::cout << "Get device failed." << std::endl;
+			ATLTRACE(_T("Get device failed."));
 			return;
 		}
 		CComPtr<IAudioSessionManager2> spSessionManager;
 		hr = spDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_INPROC_SERVER, NULL, reinterpret_cast<void**>(&spSessionManager));
 		if (FAILED(hr))
 		{
-			std::cout << "Get AudioSessionManager2 failed." << std::endl;
+			ATLTRACE(_T("Get AudioSessionManager2 failed."));
 			return;
 		}
 		CComPtr<IAudioSessionEnumerator> spSessionEnumerator;
 		hr = spSessionManager->GetSessionEnumerator(&spSessionEnumerator);
 		if (FAILED(hr))
 		{
-			std::cout << "Get IAudioSessionEnumerator failed." << std::endl;
+			ATLTRACE(_T("Get IAudioSessionEnumerator failed."));
 			return;
 		}
 		int nSessionCount = 0;
 		hr = spSessionEnumerator->GetCount(&nSessionCount);
 		if (FAILED(hr) || nSessionCount == 0)
 		{
-			std::cout << "Get session count failed." << std::endl;
+			ATLTRACE(_T("Get session count failed."));
 			return;
 		}
 		for (int j = 0; j < nSessionCount; j++)
@@ -256,77 +262,17 @@ void AudioManager::GetAllSession()
 				CoTaskMemFree(lpwSessionId);
 				continue;
 			}
-			DWORD dwProcessId = 0;
-			hr = spSession2->GetProcessId(&dwProcessId);
-			if (FAILED(hr))
-			{
-				std::cout << "Get process ID failed." << std::endl;
-				continue;
-			}
-			/*
-						if (context.find(dwProcessId) != context.end() && !context[dwProcessId].IsEmpty())
-						{
-							AUDIO_CONTROL_SESSION_ENTITY entity;
-							LPWSTR lpwSessionId = nullptr;
-							spSession2->GetSessionInstanceIdentifier(&lpwSessionId);
-							if (lpwSessionId)
-							{
-								entity.strId = lpwSessionId;
-								CoTaskMemFree(lpwSessionId);
-							}
-							entity.strName = context[dwProcessId];
-							entity.spObject = spSession;
-							this->_listSession.push_back(entity);
-							continue;
-						}
-			*/
-			DWORD dwLength = MAX_PATH;
-			WCHAR szImageName[MAX_PATH] = { 0 };
-			HANDLE hProcess = NULL;
-			hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, dwProcessId);
-			if (hProcess == NULL)
-			{
-				std::cout << "Get process handle failed." << std::endl;
-				continue;
-			}
-			QueryFullProcessImageName(hProcess, 0, szImageName, &dwLength);
-			if (!szImageName[0])
-			{
-				std::cout << "Get image name failed." << std::endl;
-				continue;
-			}
-			LPTSTR left = 0;
-			LPTSTR right = 0;
-			left = StrRStrIW(szImageName, nullptr, L"\\");
-			right = StrRStrI(left, nullptr, L".");
-			if (left == nullptr || right == nullptr)
-			{
-				std::cout << "Join name failed." << std::endl;
-				continue;
-			}
 			AUDIO_CONTROL_SESSION_ENTITY entity;
-			LPWSTR lpwDisplayName = nullptr;
-			hr = spSession2->GetDisplayName(&lpwDisplayName);
-			if (FAILED(hr) || lpwDisplayName == nullptr || !*lpwDisplayName)
-			{
-				std::cout << "Get display name failed." << std::endl;
-				left[right - left] = TEXT('\0');
-				entity.strName = (left + 1);
-			}
-			else
-			{
-				entity.strName = lpwDisplayName;
-				CoTaskMemFree(lpwDisplayName);
-			}
-			LPWSTR lpwSessionId = nullptr;
-			hr = spSession2->GetIconPath(&lpwSessionId);
-			if (FAILED(hr))
+			this->GetSessionDisplayName(spSession2, entity.strName);
+			LPTSTR lpSessionId = nullptr;
+			hr = spSession2->GetSessionInstanceIdentifier(&lpSessionId);
+			if (FAILED(hr) || !lpSessionId)
 			{
 				std::cout << "Get session id failed." << std::endl;
 				continue;
 			}
-			entity.strId = lpwSessionId;
-			CoTaskMemFree(lpwSessionId);
+			entity.strId = lpSessionId;
+			CoTaskMemFree(lpSessionId);
 			entity.spObject = spSession;
 			this->_listSession.push_back(entity);
 		}
@@ -365,4 +311,100 @@ BOOL AudioManager::GetWindows(std::map<DWORD, CString>& context)
 	}
 
 	return TRUE;
+}
+
+
+// 获取会话名称
+void AudioManager::GetSessionDisplayName(CComPtr<IAudioSessionControl2>& spSession, CString& strDisplayName)
+{
+	LPTSTR lpDisplayName = nullptr;
+	HRESULT hr = spSession->GetDisplayName(&lpDisplayName);
+	if (FAILED(hr) || lpDisplayName == nullptr)
+	{
+		return;
+	}
+	// 成功获取到名称
+	if (*lpDisplayName)
+	{
+		strDisplayName = lpDisplayName;
+		CoTaskMemFree(lpDisplayName);
+		return;
+	}
+	// 获取名称失败，尝试获取exe文件描述字段
+	// 首先通过进程ID获取进程完整路径
+	// 然后通过进程完整路径得到文件信息中的文件描述字段内容
+	CoTaskMemFree(lpDisplayName);
+	// 获取进程ID
+	DWORD dwProcessId = 0;
+	hr = spSession->GetProcessId(&dwProcessId);
+	if (FAILED(hr) || dwProcessId == 0)
+	{
+		return;
+	}
+	// 通过进程ID得到进程路径
+	HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwProcessId);
+	if (hProcess == NULL)
+	{
+		return;
+	}
+	TCHAR szExePath[MAX_PATH] = { 0 };
+	DWORD dwLength = MAX_PATH;
+	QueryFullProcessImageName(hProcess, 0, szExePath, &dwLength);
+	if (dwLength == 0)
+	{
+		TCHAR szError[MAX_PATH] = { 0 };
+		_stprintf_s(szError, MAX_PATH, TEXT("error code=0x%x"), GetLastError());
+		return;
+	}
+	DWORD dwSize = 0;
+	DWORD dwHandle = 0;
+	dwSize = GetFileVersionInfoSize(szExePath, &dwHandle);
+	if (dwSize == 0)
+	{
+		return;
+	}
+	LPVOID lpBuffer = new BYTE[dwSize];
+	ZeroMemory(lpBuffer, dwSize);
+	if (!GetFileVersionInfo(szExePath, dwHandle, dwSize, lpBuffer))
+	{
+		delete[]lpBuffer;
+		return;
+	}
+	dwLength = 0;
+	// 获取语言和字符集代码
+	LPVOID lpLangCode = nullptr;
+	if (VerQueryValue(lpBuffer, TEXT("\\VarFileInfo\\Translation"), &lpLangCode, (UINT*)&dwLength))
+	{
+		// 构建产品名称查询字符串
+		TCHAR szQuery[MAX_PATH] = { 0 };
+		_stprintf_s(szQuery, MAX_PATH, TEXT("\\StringFileInfo\\%.4x%.4x\\ProductName"), LOWORD((DWORD)(*(LPDWORD)lpLangCode)), HIWORD((DWORD)(*(LPDWORD)lpLangCode)));
+		// 获取产品名称
+		LPVOID lpProductName = nullptr;
+		if (VerQueryValue(lpBuffer, szQuery, &lpProductName, (UINT*)&dwLength))
+		{
+			strDisplayName = (LPTSTR)lpProductName;
+			delete[]lpBuffer;
+			return;
+		}
+		// 构建文件描述查询字符串
+		_stprintf_s(szQuery, MAX_PATH, TEXT("\\StringFileInfo\\%.4x%.4x\\FileDescription"), LOWORD((DWORD)(*(LPDWORD)lpLangCode)), HIWORD((DWORD)(*(LPDWORD)lpLangCode)));
+		// 获取文件描述
+		LPVOID lpFileDescription = nullptr;
+		if (VerQueryValue(lpBuffer, szQuery, &lpFileDescription, (UINT*)&dwLength))
+		{
+			strDisplayName = (LPTSTR)lpFileDescription;
+			delete[]lpBuffer;
+			return;
+		}
+		delete[]lpBuffer;
+	}
+	if (!*szExePath)
+	{
+		return;
+	}
+	CString strExePath = szExePath;
+	DWORD dwLeft = strExePath.ReverseFind(TEXT('\\'));
+	DWORD dwRight = strExePath.ReverseFind(TEXT('.'));
+	strExePath = strExePath.Mid(dwLeft, (dwRight - dwLeft));
+	strDisplayName = strExePath;
 }
