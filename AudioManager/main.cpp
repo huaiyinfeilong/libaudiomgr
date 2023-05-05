@@ -143,12 +143,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			UINT uCount = audioManager.GetSessionCount();
 			TCHAR szText[MAX_PATH] = { 0 };
 			_stprintf_s(szText, MAX_PATH, TEXT("%u个应用"), uCount);
-			MessageBox(GetForegroundWindow(), szText, TEXT(""), MB_OK);
+			MessageBox(GetForegroundWindow(), szText, TEXT(""), MB_OK);	
 			for (UINT i = 0; i < uCount; i++)
 			{
 				AUDIO_CONTROL_SESSION_ENTITY entity = audioManager.GetSession(i);
-				MessageBox(GetForegroundWindow(), entity.strName, entity.strName, MB_OK);
+				MessageBox(GetForegroundWindow(), entity.strName, entity.strId, MB_OK);
 			}
+			audioManager.Uninitialize();
 		}
 		break;
 		case IDM_ABOUT:

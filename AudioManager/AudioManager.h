@@ -36,13 +36,11 @@ public:
 	// 获取回放设备数量
 	UINT GetPlaybackDeviceCount();
 	// 获取回放设备
-	LPCWSTR GetPlaybackDevice(UINT nIndex);
+	AUDIO_CONTROL_DEVICE_ENTITY GetPlaybackDevice(UINT nIndex);
 	// 获取录音设备数量
 	UINT GetRecordingDeviceCount();
 	// 获取录音设备
-	LPCWSTR GetRecordingDevice(UINT nIndex);
-	// 获取通道
-	void GetChannels();
+	AUDIO_CONTROL_DEVICE_ENTITY GetRecordingDevice(UINT nIndex);
 	// 获取会话数量
 	UINT GetSessionCount();
 	// 获取会话
@@ -50,19 +48,17 @@ public:
 
 protected:
 	// 根据类型获取设备列表
-	void GetDevices(EDataFlow dataFlow, std::map<std::wstring, CComPtr<IMMDevice>>& mapDevices);
+	void GetDevices(EDataFlow dataFlow, std::vector<AUDIO_CONTROL_DEVICE_ENTITY>& listDevice);
 	// 获取所有会话
 	void GetAllSession();
-	// 根据进程ID获取窗口句柄
-	BOOL GetWindowTitleByProcessId(DWORD dwProcessId, CString& strTitle);
-	// 窗口枚举静态方法
-	static BOOL WndEnumProc(HWND hWnd, LPARAM lParam);
+	// 获取所有顶级窗口
+	BOOL GetWindows(std::map<DWORD, CString>& context);
 
 protected:
 	// 输出设备
-	std::map<std::wstring, CComPtr<IMMDevice>> _mapPlaybackDevices;
+	std::vector<AUDIO_CONTROL_DEVICE_ENTITY> _listPlaybackDevice;
 	// 输入设备
-	std::map<std::wstring, CComPtr<IMMDevice>> _mapRecordingDevices;
+	std::vector<AUDIO_CONTROL_DEVICE_ENTITY> _listRecordingDevice;
 	// 应用程序会话列表
 	std::vector<AUDIO_CONTROL_SESSION_ENTITY> _listSession;
 };

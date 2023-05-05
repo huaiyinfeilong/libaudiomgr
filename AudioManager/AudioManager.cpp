@@ -1,32 +1,23 @@
 #include "AudioManager.h"
+#include <windowsx.h>
+#include <oleacc.h>
 
-
-struct WNDENUMPROC_CONTEXT_DATA {
-	DWORD dwProcessId;
-	CString& strTitle;
-
-public:
-	WNDENUMPROC_CONTEXT_DATA(DWORD dwProcessId, CString& strTitle) :
-		strTitle(strTitle)
-	{
-		this->dwProcessId = dwProcessId;
-	}
-};
 
 // 初始化
 void AudioManager::Initialize()
 {
 	CoInitialize(NULL);
-	this->GetDevices(eRender, _mapPlaybackDevices);
-	this->GetDevices(eCapture, _mapRecordingDevices);
+	this->GetDevices(eRender, this->_listPlaybackDevice);
+	this->GetDevices(eCapture, this->_listRecordingDevice);
 	this->GetAllSession();
 }
 
 // 逆初始化
 void AudioManager::Uninitialize()
 {
-	_mapPlaybackDevices.clear();
-	_mapRecordingDevices.clear();
+	this->_listPlaybackDevice.clear();
+	this->_listRecordingDevice.clear();
+	this->_listSession.clear();
 	CoUninitialize();
 }
 
@@ -34,115 +25,28 @@ void AudioManager::Uninitialize()
 // 获取回放设备数量
 UINT AudioManager::GetPlaybackDeviceCount()
 {
-	return (UINT)_mapPlaybackDevices.size();
+	return (UINT)this->_listPlaybackDevice.size();
 }
 
 
 // 获取回放设备
-LPCWSTR AudioManager::GetPlaybackDevice(UINT nIndex)
+AUDIO_CONTROL_DEVICE_ENTITY AudioManager::GetPlaybackDevice(UINT nIndex)
 {
-	UINT i = 0;
-	UINT count = GetPlaybackDeviceCount();
-	for (auto it = _mapPlaybackDevices.begin(); i < count && it != _mapPlaybackDevices.end(); it++, i++)
-	{
-		if (i == nIndex)
-		{
-			return it->first.c_str();
-		}
-	}
-	return nullptr;
+	return this->_listPlaybackDevice[nIndex];
 }
 
 
 // 获取录音设备数量
 UINT AudioManager::GetRecordingDeviceCount()
 {
-	return (UINT)_mapRecordingDevices.size();
+	return (UINT)this->_listRecordingDevice.size();
 }
 
 
 // 获取录音设备
-LPCWSTR AudioManager::GetRecordingDevice(UINT nIndex)
+AUDIO_CONTROL_DEVICE_ENTITY AudioManager::GetRecordingDevice(UINT nIndex)
 {
-	UINT i = 0;
-	UINT count = GetRecordingDeviceCount();
-	for (auto it = _mapRecordingDevices.begin(); i < count && it != _mapRecordingDevices.end(); it++, i++)
-	{
-		if (i == nIndex)
-		{
-			return it->first.c_str();
-		}
-	}
-	return nullptr;
-}
-
-
-// 获取通道
-void AudioManager::GetChannels()
-{
-	CComPtr<IMMDeviceEnumerator> spEnumerator;
-	spEnumerator.CoCreateInstance(__uuidof(MMDeviceEnumerator));
-	if (!spEnumerator)
-	{
-		std::cout << "获取IMMDeviceEnumerator接口失败。" << std::endl;
-		return;
-		std::cout << "获取IMMDeviceEnumerator接口失败。" << std::endl;
-	}
-	CComPtr<IMMDeviceCollection> spDevices;
-	spEnumerator->EnumAudioEndpoints(eRender, eMultimedia, &spDevices);
-	if (!spDevices)
-	{
-		std::cout << "获取IMMDeviceCollection接口失败。" << std::endl;
-		return;
-	}
-	CComPtr<IMMDevice> spDevice;
-	spEnumerator->GetDefaultAudioEndpoint(eRender, eMultimedia, &spDevice);
-	if (!spDevice)
-	{
-		std::cout << "获取IMMDevice失败。" << std::endl;
-		return;
-	}
-	CComPtr<IAudioSessionManager2> spSessionManager;
-	spDevice->Activate(__uuidof(IAudioSessionManager2), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(&spSessionManager));
-	CComPtr<IAudioSessionEnumerator> spSessionEnumerator;
-	spSessionManager->GetSessionEnumerator(&spSessionEnumerator);
-	int count = 0;
-	spSessionEnumerator->GetCount(&count);
-	for (int i = 0; i < count; i++)
-	{
-		CComPtr<IAudioSessionControl> spSession;
-		spSessionEnumerator->GetSession(i, &spSession);
-		CComPtr<IAudioSessionControl2> spSession2;
-		spSession->QueryInterface(__uuidof(IAudioSessionControl2), reinterpret_cast<void**>(&spSession2));
-		DWORD dwProcessId = 0;
-		spSession2->GetProcessId(&dwProcessId);
-		wchar_t szPath[MAX_PATH] = { 0 };
-		HANDLE hProcess = NULL;
-		hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwProcessId);
-		DWORD dwLength = MAX_PATH;
-		QueryFullProcessImageNameW(hProcess, 0, szPath, &dwLength);
-		CloseHandle(hProcess);
-		std::wstring name = szPath;
-		if (!name.empty())
-		{
-			std::wstring::size_type pos1 = name.rfind(L'\\');
-			std::wstring::size_type pos2 = name.rfind(L'.');
-			name = name.substr(pos1, pos2 - pos1);
-			std::wcout << name << std::endl;
-		}
-		else
-		{
-			HRESULT hr = spSession2->IsSystemSoundsSession();
-			if (hr != S_FALSE)
-			{
-				std::wcout << L"系统声音\n";
-			}
-			else
-			{
-				//std::wcout << L"不是系统声音\n";
-			}
-		}
-	}
+	return this->_listRecordingDevice[nIndex];
 }
 
 
@@ -161,27 +65,26 @@ AUDIO_CONTROL_SESSION_ENTITY AudioManager::GetSession(UINT nIndex) const
 
 
 // 根据类型获取设备列表
-void AudioManager::GetDevices(EDataFlow dataFlow, std::map <std::wstring, CComPtr<IMMDevice>>& mapDevices)
+void AudioManager::GetDevices(EDataFlow dataFlow, std::vector<AUDIO_CONTROL_DEVICE_ENTITY>& listDevice)
 {
-	mapDevices.clear();
+	listDevice.clear();
 	CComPtr<IMMDeviceEnumerator> spEnumerator;
-	spEnumerator.CoCreateInstance(__uuidof(MMDeviceEnumerator));
-	if (!spEnumerator)
+	HRESULT hr = spEnumerator.CoCreateInstance(__uuidof(MMDeviceEnumerator));
+	if (FAILED(hr))
 	{
 		std::cout << "获取IMMDeviceEnumerator接口失败。" << std::endl;
 		return;
-		std::cout << "获取IMMDeviceEnumerator接口失败。" << std::endl;
 	}
 	CComPtr<IMMDeviceCollection> spDevices;
-	spEnumerator->EnumAudioEndpoints(dataFlow, eMultimedia, &spDevices);
-	if (!spDevices)
+	hr = spEnumerator->EnumAudioEndpoints(dataFlow, eMultimedia, &spDevices);
+	if (FAILED(hr))
 	{
 		std::cout << "获取IMMDeviceCollection接口失败。" << std::endl;
 		return;
 	}
 	UINT count = 0;
-	spDevices->GetCount(&count);
-	if (!count)
+	hr = spDevices->GetCount(&count);
+	if (FAILED(hr) || !count)
 	{
 		std::cout << "获取到0个设备。" << std::endl;
 		return;
@@ -189,29 +92,45 @@ void AudioManager::GetDevices(EDataFlow dataFlow, std::map <std::wstring, CComPt
 	for (UINT i = 0; i < count; i++)
 	{
 		CComPtr<IMMDevice> spDevice;
-		spDevices->Item(i, &spDevice);
-		if (!spDevice)
+		hr = spDevices->Item(i, &spDevice);
+		if (FAILED(hr))
 		{
 			std::cout << "获取IMMDevice接口失败。" << std::endl;
 			continue;
 		}
 		CComPtr<IPropertyStore> spStore;
-		spDevice->OpenPropertyStore(STGM_READ, &spStore);
-		if (!spStore)
+		hr = spDevice->OpenPropertyStore(STGM_READ, &spStore);
+		if (FAILED(hr))
 		{
 			std::cout << "获取IPropertyStore接口失败。" << std::endl;
 			continue;
 		}
 		PROPVARIANT pv;
-		spStore->GetValue(PKEY_Device_FriendlyName, &pv);
+		hr = spStore->GetValue(PKEY_Device_FriendlyName, &pv);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		AUDIO_CONTROL_DEVICE_ENTITY entity;
 		if (pv.vt == VT_LPWSTR)
 		{
-			mapDevices[pv.pwszVal] = spDevice;
+			entity.strName = pv.pwszVal;
 		}
-		else {
+		else
+		{
 			std::cout << "PropertyVariant的vt不是VT_LPWSTR" << std::endl;
 		}
 		PropVariantClear(&pv);
+		LPTSTR lpDeviceId = nullptr;
+		hr = spDevice->GetId(&lpDeviceId);
+		if (FAILED(hr))
+		{
+			continue;
+		}
+		entity.strId = lpDeviceId;
+		CoTaskMemFree(lpDeviceId);
+		entity.spObject = spDevice;
+		listDevice.push_back(entity);
 	}
 }
 
@@ -219,6 +138,10 @@ void AudioManager::GetDevices(EDataFlow dataFlow, std::map <std::wstring, CComPt
 // 获取所有会话
 void AudioManager::GetAllSession()
 {
+	// 获取当前所有窗口及其进程ID
+	std::map<DWORD, CString> context;
+	GetWindows(context);
+	// 获取所有session
 	HRESULT hr = S_OK;
 	CComPtr<IMMDeviceEnumerator> spDeviceEnumerator;
 	hr = spDeviceEnumerator.CoCreateInstance(__uuidof(MMDeviceEnumerator));
@@ -321,7 +244,7 @@ void AudioManager::GetAllSession()
 				CoTaskMemFree(lpwCurrentDeviceId);
 				AUDIO_CONTROL_SESSION_ENTITY entity;
 				LPWSTR lpwSessionId = nullptr;
-				hr = spSession2->GetSessionIdentifier(&lpwSessionId);
+				hr = spSession2->GetSessionInstanceIdentifier(&lpwSessionId);
 				if (FAILED(hr) || lpwSessionId == nullptr)
 				{
 					continue;
@@ -340,22 +263,23 @@ void AudioManager::GetAllSession()
 				std::cout << "Get process ID failed." << std::endl;
 				continue;
 			}
-			CString strTitle;
-			if (this->GetWindowTitleByProcessId(dwProcessId, strTitle))
-			{
-				AUDIO_CONTROL_SESSION_ENTITY entity;
-				LPWSTR lpwSessionId = nullptr;
-				spSession2->GetSessionIdentifier(&lpwSessionId);
-				if (lpwSessionId)
-				{
-					entity.strId = lpwSessionId;
-					CoTaskMemFree(lpwSessionId);
-				}
-				entity.strName = strTitle;
-				entity.spObject = spSession;
-				this->_listSession.push_back(entity);
-				continue;
-			}
+			/*
+						if (context.find(dwProcessId) != context.end() && !context[dwProcessId].IsEmpty())
+						{
+							AUDIO_CONTROL_SESSION_ENTITY entity;
+							LPWSTR lpwSessionId = nullptr;
+							spSession2->GetSessionInstanceIdentifier(&lpwSessionId);
+							if (lpwSessionId)
+							{
+								entity.strId = lpwSessionId;
+								CoTaskMemFree(lpwSessionId);
+							}
+							entity.strName = context[dwProcessId];
+							entity.spObject = spSession;
+							this->_listSession.push_back(entity);
+							continue;
+						}
+			*/
 			DWORD dwLength = MAX_PATH;
 			WCHAR szImageName[MAX_PATH] = { 0 };
 			HANDLE hProcess = NULL;
@@ -383,17 +307,19 @@ void AudioManager::GetAllSession()
 			AUDIO_CONTROL_SESSION_ENTITY entity;
 			LPWSTR lpwDisplayName = nullptr;
 			hr = spSession2->GetDisplayName(&lpwDisplayName);
-			if (FAILED(hr || lpwDisplayName == nullptr))
+			if (FAILED(hr) || lpwDisplayName == nullptr || !*lpwDisplayName)
 			{
 				std::cout << "Get display name failed." << std::endl;
-				continue;
+				left[right - left] = TEXT('\0');
+				entity.strName = (left + 1);
 			}
-			entity.strName = lpwDisplayName;
-			CoTaskMemFree(lpwDisplayName);
-			left[right - left] = TEXT('\0');
-			entity.strName = (left + 1);
+			else
+			{
+				entity.strName = lpwDisplayName;
+				CoTaskMemFree(lpwDisplayName);
+			}
 			LPWSTR lpwSessionId = nullptr;
-			hr = spSession2->GetSessionIdentifier(&lpwSessionId);
+			hr = spSession2->GetIconPath(&lpwSessionId);
 			if (FAILED(hr))
 			{
 				std::cout << "Get session id failed." << std::endl;
@@ -409,25 +335,34 @@ void AudioManager::GetAllSession()
 
 
 // 通过进程ID获取窗口标题
-BOOL AudioManager::GetWindowTitleByProcessId(DWORD dwProcessId, CString& strTitle)
+BOOL AudioManager::GetWindows(std::map<DWORD, CString>& context)
 {
-	WNDENUMPROC_CONTEXT_DATA context(dwProcessId, strTitle);
-	return EnumWindows(&AudioManager::WndEnumProc, (LPARAM)&context);
-}
-
-
-// 枚举窗口静态方法
-BOOL AudioManager::WndEnumProc(HWND hWnd, LPARAM lpParam)
-{
-	WNDENUMPROC_CONTEXT_DATA* context = (WNDENUMPROC_CONTEXT_DATA*)lpParam;
 	DWORD dwProcessId = 0;
-	GetWindowThreadProcessId(hWnd, &dwProcessId);
-	if (dwProcessId != 0 && dwProcessId == context->dwProcessId)
+	HWND hWnd = FindWindowEx(NULL, NULL, NULL, NULL);
+	while (hWnd != NULL)
 	{
+		DWORD dwStyle = GetWindowStyle(hWnd);
+		if (!(dwStyle & (WS_OVERLAPPED | WS_POPUP)) || dwStyle & WS_DISABLED)
+		{
+			hWnd = FindWindowEx(NULL, hWnd, NULL, NULL);
+			continue;
+		}
+		GetWindowThreadProcessId(hWnd, &dwProcessId);
+		if (dwProcessId == 0)
+		{
+			hWnd = FindWindowEx(NULL, hWnd, NULL, NULL);
+			continue;
+		}
 		TCHAR szTitle[MAX_PATH] = { 0 };
 		GetWindowText(hWnd, szTitle, MAX_PATH);
-		context->strTitle = szTitle;
-		return TRUE;
+		if (!*szTitle)
+		{
+			hWnd = FindWindowEx(NULL, hWnd, NULL, NULL);
+			continue;
+		}
+		context.insert(std::pair<DWORD, CString>(dwProcessId, szTitle));
+		hWnd = FindWindowEx(NULL, hWnd, NULL, NULL);
 	}
-	return FALSE;
+
+	return TRUE;
 }
