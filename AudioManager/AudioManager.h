@@ -45,10 +45,22 @@ public:
 	UINT GetSessionCount();
 	// 获取会话
 	AUDIO_CONTROL_SESSION_ENTITY GetSession(UINT nIndex) const;
+	// 获取回放设备音量
+	FLOAT GetPlaybackDeviceVolume(UINT nIndex);
+	// 设置回放设备音量
+	void SetPlaybackDeviceVolume(UINT nIndex, FLOAT fVolume);
+	// 获取录音设备音量
+	FLOAT GetRecordingDeviceVolume(UINT nIndex);
+	// 设置录音设备音量
+	void SetRecordingDeviceVolume(UINT nIndex, FLOAT fVolume);
+	// 获取会话音量
+	FLOAT GetSessionVolume(UINT nIndex);
+	// 设置会话音量
+	void SetSessionVolume(UINT nIndex, FLOAT fVolume);
 
 protected:
 	// 根据类型获取设备列表
-	void GetDevices(EDataFlow dataFlow, std::vector<AUDIO_CONTROL_DEVICE_ENTITY>& listDevice);
+	void GetDevices(EDataFlow dataFlow, DWORD dwStateMask, std::vector<AUDIO_CONTROL_DEVICE_ENTITY>& listDevice);
 	// 获取所有会话
 	void GetAllSession();
 	// 获取所有顶级窗口

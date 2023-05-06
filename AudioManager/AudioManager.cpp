@@ -1,6 +1,7 @@
 #include "AudioManager.h"
 #include <windowsx.h>
 #include <oleacc.h>
+#include <endpointvolume.h>
 
 
 void MsgBox(LPCTSTR lpText)
@@ -13,8 +14,8 @@ void MsgBox(LPCTSTR lpText)
 void AudioManager::Initialize()
 {
 	CoInitialize(NULL);
-	this->GetDevices(eRender, this->_listPlaybackDevice);
-	this->GetDevices(eCapture, this->_listRecordingDevice);
+	this->GetDevices(eRender, eMultimedia, this->_listPlaybackDevice);
+	this->GetDevices(eCapture, eCommunications, this->_listRecordingDevice);
 	this->GetAllSession();
 }
 
@@ -71,7 +72,7 @@ AUDIO_CONTROL_SESSION_ENTITY AudioManager::GetSession(UINT nIndex) const
 
 
 // 根据类型获取设备列表
-void AudioManager::GetDevices(EDataFlow dataFlow, std::vector<AUDIO_CONTROL_DEVICE_ENTITY>& listDevice)
+void AudioManager::GetDevices(EDataFlow dataFlow, DWORD dwStateMask, std::vector<AUDIO_CONTROL_DEVICE_ENTITY>& listDevice)
 {
 	listDevice.clear();
 	CComPtr<IMMDeviceEnumerator> spEnumerator;
@@ -407,4 +408,163 @@ void AudioManager::GetSessionDisplayName(CComPtr<IAudioSessionControl2>& spSessi
 	DWORD dwRight = strExePath.ReverseFind(TEXT('.'));
 	strExePath = strExePath.Mid(dwLeft, (dwRight - dwLeft));
 	strDisplayName = strExePath;
+}
+
+
+// 获取回放设备音量
+FLOAT AudioManager::GetPlaybackDeviceVolume(UINT nIndex)
+{
+	FLOAT fVolume = 0.00f;
+	AUDIO_CONTROL_DEVICE_ENTITY entity = this->GetPlaybackDevice(nIndex);
+	CComPtr<IMMDevice> spDevice = entity.spObject;
+	if (!spDevice)
+	{
+		ATLTRACE(_T("没有找到指定的设备。"));
+		return fVolume;
+	}
+
+	// 获取IAudioEndpointVolume接口
+	CComPtr<IAudioEndpointVolume> spVolume;
+	HRESULT hr = spDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(&spVolume));
+	if (FAILED(hr))
+	{
+		ATLTRACE(_T("获取IAudioEndpointVolume接口失败。"));
+		return fVolume;
+	}
+
+	// 获取音量
+	spVolume->GetMasterVolumeLevelScalar(&fVolume);
+
+	return fVolume;
+}
+
+
+// 设置回放设备音量
+void AudioManager::SetPlaybackDeviceVolume(UINT nIndex, FLOAT fVolume)
+{
+	AUDIO_CONTROL_DEVICE_ENTITY entity = this->GetPlaybackDevice(nIndex);
+	CComPtr<IMMDevice> spDevice = entity.spObject;
+	if (!spDevice)
+	{
+		ATLTRACE(_T("没有找到指定的设备。"));
+		return;
+	}
+
+	// 获取IAudioEndpointVolume接口
+	CComPtr<IAudioEndpointVolume> spVolume;
+	HRESULT hr = spDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(&spVolume));
+	if (FAILED(hr))
+	{
+		ATLTRACE(_T("获取IAudioEndpointVolume接口失败。"));
+		return;
+	}
+
+	// 设置音量
+	spVolume->SetMasterVolumeLevelScalar(fVolume, nullptr);
+}
+
+
+// 获取录音设备音量
+FLOAT AudioManager::GetRecordingDeviceVolume(UINT nIndex)
+{
+	FLOAT fVolume = 0.00f;
+	AUDIO_CONTROL_DEVICE_ENTITY entity = this->GetRecordingDevice(nIndex);
+	CComPtr<IMMDevice> spDevice = entity.spObject;
+	if (!spDevice)
+	{
+		ATLTRACE(_T("没有找到指定的设备。"));
+		return fVolume;
+	}
+
+	// 获取IAudioEndpointVolume接口
+	CComPtr<IAudioEndpointVolume> spVolume;
+	HRESULT hr = spDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(&spVolume));
+	if (FAILED(hr))
+	{
+		ATLTRACE(_T("获取IAudioEndpointVolume接口失败。"));
+		return fVolume;
+	}
+
+	// 获取音量
+	spVolume->GetMasterVolumeLevelScalar(&fVolume);
+
+	return fVolume;
+}
+
+
+// 设置录音设备音量
+void AudioManager::SetRecordingDeviceVolume(UINT nIndex, FLOAT fVolume)
+{
+	AUDIO_CONTROL_DEVICE_ENTITY entity = this->GetRecordingDevice(nIndex);
+	CComPtr<IMMDevice> spDevice = entity.spObject;
+	if (!spDevice)
+	{
+		ATLTRACE(_T("没有找到指定的设备。"));
+		return;
+	}
+
+	// 获取IAudioEndpointVolume接口
+	CComPtr<IAudioEndpointVolume> spVolume;
+	HRESULT hr = spDevice->Activate(__uuidof(IAudioEndpointVolume), CLSCTX_INPROC_SERVER, nullptr, reinterpret_cast<void**>(&spVolume));
+	if (FAILED(hr))
+	{
+		ATLTRACE(_T("获取IAudioEndpointVolume接口失败。"));
+		return;
+	}
+
+	// 设置音量
+	spVolume->SetMasterVolumeLevelScalar(fVolume, nullptr);
+}
+
+
+// 获取会话音量
+FLOAT AudioManager::GetSessionVolume(UINT nIndex)
+{
+	FLOAT fVolume = 0.00f;
+	AUDIO_CONTROL_SESSION_ENTITY entity = this->GetSession(nIndex);
+	CComPtr<IAudioSessionControl> spSession = entity.spObject;
+	if (!spSession)
+	{
+		ATLTRACE(_T("没有找到指定的设备。"));
+		return fVolume;
+	}
+
+	// 获取ISimpleAudioVolume接口
+	CComPtr<ISimpleAudioVolume> spVolume;
+	HRESULT hr = spSession->QueryInterface(__uuidof(ISimpleAudioVolume), reinterpret_cast<void **>(&spVolume));
+	if (FAILED(hr))
+	{
+		ATLTRACE(_T("获取ISimpleAudioVolume接口失败。"));
+		return fVolume;
+	}
+
+	// 获取音量
+	spVolume->GetMasterVolume(&fVolume);
+
+	return fVolume;
+}
+
+
+// 设置会话音量
+void AudioManager::SetSessionVolume(UINT nIndex, FLOAT fVolume)
+{
+	AUDIO_CONTROL_SESSION_ENTITY entity = this->GetSession(nIndex);
+	CComPtr<IAudioSessionControl> spSession = entity.spObject;
+	if (!spSession)
+	{
+		ATLTRACE(_T("没有找到指定的设备。"));
+		return;
+	}
+
+	// 获取ISimpleAudioVolume接口
+	CComPtr<ISimpleAudioVolume> spVolume;
+	HRESULT hr = spSession->QueryInterface(__uuidof(ISimpleAudioVolume), reinterpret_cast<void**>(&spVolume));
+	if (FAILED(hr))
+	{
+		ATLTRACE(_T("获取ISimpleAudioVolume接口失败。"));
+		return;
+	}
+
+	// 设置音量
+	spVolume->SetMasterVolume(fVolume, nullptr);
 }
