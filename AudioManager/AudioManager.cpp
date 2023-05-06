@@ -78,7 +78,7 @@ void AudioManager::GetDevices(EDataFlow dataFlow, std::vector<AUDIO_CONTROL_DEVI
 	HRESULT hr = spEnumerator.CoCreateInstance(__uuidof(MMDeviceEnumerator));
 	if (FAILED(hr))
 	{
-		std::cout << "获取IMMDeviceEnumerator接口失败。" << std::endl;
+		ATLTRACE(_T("获取IMMDeviceEnumerator接口失败。"));
 		return;
 	}
 	CComPtr<IMMDeviceCollection> spDevices;
@@ -153,7 +153,7 @@ void AudioManager::GetAllSession()
 	hr = spDeviceEnumerator.CoCreateInstance(__uuidof(MMDeviceEnumerator));
 	if (FAILED(hr))
 	{
-		atlTraceAllocation(_T("Get IMMDeviceEnumerator failed."));
+		ATLTRACE(_T("Get IMMDeviceEnumerator failed."));
 		return;
 	}
 	CComPtr<IMMDeviceCollection> spDeviceCollection;
@@ -213,14 +213,14 @@ void AudioManager::GetAllSession()
 			hr = spSessionEnumerator->GetSession(j, &spSession);
 			if (FAILED(hr))
 			{
-				std::cout << "Get session failed." << std::endl;
+				ATLTRACE(_T("Get session failed."));
 				continue;
 			}
 			CComPtr<IAudioSessionControl2> spSession2;
 			hr = spSession->QueryInterface(__uuidof(IAudioSessionControl2), reinterpret_cast<void**>(&spSession2));
 			if (FAILED(hr))
 			{
-				std::cout << "Get session2 failed." << std::endl;
+				ATLTRACE(_T("Get session2 failed."));
 				continue;
 			}
 			if (spSession2->IsSystemSoundsSession() != S_FALSE)
@@ -230,13 +230,13 @@ void AudioManager::GetAllSession()
 				hr = spDefaultDevice->GetId(&lpwDefaultDeviceId);
 				if (FAILED(hr))
 				{
-					std::cout << "Get default device id failed." << std::endl;
+					ATLTRACE(_T("Get default device id failed."));
 					continue;
 				}
 				hr = spDevice->GetId(&lpwCurrentDeviceId);
 				if (FAILED(hr))
 				{
-					std::cout << "Get current device id failed." << std::endl;
+					ATLTRACE(_T("Get current device id failed."));
 					CoTaskMemFree(lpwDefaultDeviceId);
 					continue;
 				}
@@ -268,7 +268,7 @@ void AudioManager::GetAllSession()
 			hr = spSession2->GetSessionInstanceIdentifier(&lpSessionId);
 			if (FAILED(hr) || !lpSessionId)
 			{
-				std::cout << "Get session id failed." << std::endl;
+				ATLTRACE(_T("Get session id failed."));
 				continue;
 			}
 			entity.strId = lpSessionId;
