@@ -7,33 +7,32 @@
 #include "PolicyConfig.h"
 #include <fstream>
 #include<Audioclient.h>
+#include <log4cxx/logger.h>
 
 
 #define LIBAUDIOMGR_DEBUG
+
 #define LOG(msg) write_log(_T("D:\\log.txt"), _T(__FILE__), __LINE__, _T(__FUNCTION__), msg)
+
+log4cxx::LoggerPtr logger = log4cxx::Logger::getRootLogger();
 
 void write_log(const wchar_t* logfilename, const wchar_t* filename, size_t line, const wchar_t* function, const wchar_t* message)
 {
 #ifndef LIBAUDIOMGR_DEBUG
 	return;
 #endif
-	std::wofstream logfile;
 	try
 	{
-		logfile.open(logfilename, std::wios::app | std::wios::out | std::ios::binary);
-		logfile << _T("Error:") << std::endl;
-		logfile << _T("File: ") << filename << std::endl;
-		logfile << _T("Line: ") << line << std::endl;
-		logfile << _T("Function: ") << function << std::endl;
-		logfile << message << std::endl;
-		logfile << std::endl;
-		logfile.close();
+		std::wstringstream stream;
+		stream << "File: " << filename << std::endl
+			<< "Line: " << line << std::endl
+			<< "Function: " << function << std::endl
+			<< "Message: " << message << std::endl;
+		LOG4CXX_INFO(logger, stream.str().c_str());
 	}
-	catch (std::exception& e)
+	catch (std::exception&)
 	{
-		std::cerr << e.what() << std::endl;
 	}
-
 }
 
 
@@ -279,6 +278,7 @@ void AudioManager::SetSessionDevice(DWORD dwIndex, CComPtr<IMMDevice>& spDevice)
 		LOG(_T("获取IAudioSessionManager2接口失败。"));
 		return;
 	}
+	
 }
 
 
