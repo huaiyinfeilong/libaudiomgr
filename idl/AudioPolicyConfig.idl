@@ -1,0 +1,13 @@
+import "unknwn.idl";
+import "MMDeviceApi.idl";
+import "inspectable.idl";
+
+[
+	uuid(ab3d4648-e242-459f-b02f-541c70306324),
+]
+interface IAudioPolicyConfig: IInspectable
+{
+HRESULT SetPersistedDefaultAudioEndpoint([in] UINT processId, [in] EDataFlow flow, [in] ERole role, [in] HSTRING deviceId);
+	HRESULT GetPersistedDefaultAudioEndpoint([in] UINT processId, [in] EDataFlow flow, [in] ERole role, [out, retval] HSTRING* pDeviceId);
+	HRESULT ClearAllPersistedApplicationDefaultEndpoints();
+};
