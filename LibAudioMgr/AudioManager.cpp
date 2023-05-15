@@ -173,6 +173,17 @@ void AudioManager::GetDevices(EDataFlow dataFlow, ERole eRole, std::vector<AUDIO
 		entity.spObject = spDevice;
 		listDevice.push_back(entity);
 	}
+	CString strMessage = _T("\n");
+	if (dataFlow == eRender)
+	{
+		for (auto it = this->_listPlaybackDevice.begin(); it != this->_listPlaybackDevice.end(); it++)
+		{
+			CString str;
+			str.Format(_T("deviceId=%s\nname=%s\n"), it->strId, it->strName);
+			strMessage += str;
+		}
+		LOG(strMessage);
+	}
 }
 
 
@@ -440,12 +451,12 @@ void AudioManager::GetAllSession()
 			mapSession[dwProcessId] = entity;
 		}
 	}
-	CString strMessage = _T("");
+	CString strMessage = _T("\n");
 	for (auto it = mapSession.begin(); it != mapSession.end(); it++)
 	{
 		this->_listSession.push_back(it->second);
 		CString str = _T("");
-		str.Format(_T("dwProcessId=%d\ndisplayName=%s\n"), it->first, it->second.strName);
+		str.Format(_T("dwProcessId=%d\nsessionId=%s\ndisplayName=%s\n"), it->first, it->second.strId, it->second.strName);
 		strMessage += str;
 	}
 	LOG((LPCTSTR)strMessage);
