@@ -1345,6 +1345,16 @@ void AudioManager::SetSessionPlaybackDevice(DWORD dwSessionIndex, DWORD dwDevice
 		pFactory->Release();
 		return;
 	}
+	hr = pAudioPolicyConfig->SetPersistedDefaultAudioEndpoint(dwProcessId, eRender, eConsole, deviceId);
+	if (FAILED(hr) || !deviceId)
+	{
+		LOG(_T("设置当前播放设备ID失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		WindowsDeleteString(deviceId);
+		pAudioPolicyConfig->Release();
+		pFactory->Release();
+		return;
+	}
 	WindowsDeleteString(deviceId);
 	pAudioPolicyConfig->Release();
 	pFactory->Release();
