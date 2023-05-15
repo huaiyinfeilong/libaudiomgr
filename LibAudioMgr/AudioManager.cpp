@@ -379,7 +379,7 @@ void AudioManager::GetAllSession()
 			}
 			DWORD dwProcessId = 0;
 			hr = spSession2->GetProcessId(&dwProcessId);
-			if (FAILED(hr))
+			if (FAILED(hr) || dwProcessId == 0)
 			{
 				LOG(_T("Get the process IDof the session is failed."));
 				continue;
@@ -440,10 +440,15 @@ void AudioManager::GetAllSession()
 			mapSession[dwProcessId] = entity;
 		}
 	}
+	CString strMessage = _T("");
 	for (auto it = mapSession.begin(); it != mapSession.end(); it++)
 	{
 		this->_listSession.push_back(it->second);
+		CString str = _T("");
+		str.Format(_T("dwProcessId=%d\ndisplayName=%s\n"), it->first, it->second.strName);
+		strMessage += str;
 	}
+	LOG((LPCTSTR)strMessage);
 }
 
 
