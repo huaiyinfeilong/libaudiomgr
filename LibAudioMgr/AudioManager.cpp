@@ -1207,21 +1207,31 @@ DWORD AudioManager::GetSessionPlaybackDevice(DWORD dwIndex)
 		LOG(_T("获取进程ID失败。"));
 		return -1;
 	}
-	// 获取IAudioPolicyConfig接口
+	// 获取IActivationFactory接口
+	IActivationFactory* pFactory = nullptr;
 	HSTRING CLSID_AudioPolicyConfig;
 	LPCWSTR szClsid = L"Windows.Media.Internal.AudioPolicyConfig";
-	hr = WindowsCreateString(szClsid, wcslen(szClsid),&CLSID_AudioPolicyConfig);
+	hr = WindowsCreateString(szClsid, (UINT)wcslen(szClsid),&CLSID_AudioPolicyConfig);
 	if (FAILED(hr))
 	{
 		LOG(_T("构建CLSID_AudioPolicyConfig字符串失败。"));
 		return -1;
 	}
+	hr = RoGetActivationFactory(CLSID_AudioPolicyConfig, __uuidof(IActivationFactory), reinterpret_cast<void **>(&pFactory));
+	if (FAILED(hr))
+	{
+		LOG(_T("获取IActivationFactory接口失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		return -1;
+	}
+	// 获取IAudioPolicyConfig接口
 	IAudioPolicyConfig* pAudioPolicyConfig = nullptr;
-	hr = RoGetActivationFactory(CLSID_AudioPolicyConfig, __uuidof(IAudioPolicyConfig), reinterpret_cast<void **>(&pAudioPolicyConfig));
+	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void **>(&pAudioPolicyConfig));
 	if (FAILED(hr))
 	{
 		LOG(_T("获取IAudioPolicyConfig接口失败。"));
 		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		pFactory->Release();
 		return -1;
 	}
 	// 获取当前播放设备ID
@@ -1230,7 +1240,112 @@ DWORD AudioManager::GetSessionPlaybackDevice(DWORD dwIndex)
 	if (FAILED(hr) || !deviceId)
 	{
 		LOG(_T("获取当前播放设备ID失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		pAudioPolicyConfig->Release();
+		pFactory->Release();
 		return -1;
 	}
-		return -1;
+	CString strDeviceId(WindowsGetStringRawBuffer(deviceId, nullptr), WindowsGetStringLen(deviceId));
+	WindowsDeleteString(deviceId);
+	for (auto it = this->_listPlaybackDevice.begin(); it != this->_listPlaybackDevice.end(); it++)
+	{
+		if (strDeviceId.Find(it->strId) >= 0)
+		{
+			LOG(_T("找到当前播放设备。"));
+			pAudioPolicyConfig->Release();
+			pFactory->Release();
+			return static_cast<DWORD>(std::distance(this->_listPlaybackDevice.begin(), it));
+		}
+	}
+	pAudioPolicyConfig->Release();
+	pFactory->Release();
+
+	return -1;
+}
+
+// 设置会话当前播放设备
+void AudioManager::SetSessionPlaybackDevice(DWORD dwSessionIndex, DWORD dwDeviceIndex)
+{
+	// 参数检查
+	if (dwSessionIndex < 0 || dwSessionIndex >= this->GetSessionCount()
+		|| dwDeviceIndex < 0 || dwDeviceIndex >= this->GetPlaybackDeviceCount())
+	{
+		LOG(_T("参数错误。给定的索引超出了会话列表下标范围。"));
+		return;
+	}
+	// 获取播放设备ID
+	AUDIO_CONTROL_DEVICE_ENTITY deviceEntity = this->GetPlaybackDevice(dwDeviceIndex);
+	CString strDeviceId = deviceEntity.strId;
+	// 通过IAudioSessionControl获取IAudioSessionControl2接口
+	CComPtr<IAudioSessionControl> spSession;
+	AUDIO_CONTROL_SESSION_ENTITY sessionEntity = this->GetSession(dwSessionIndex);
+	spSession = sessionEntity.spObject;
+	CComPtr<IAudioSessionControl2> spSession2;
+	HRESULT hr = spSession->QueryInterface(__uuidof(IAudioSessionControl2), reinterpret_cast<void**>(&spSession2));
+	if (FAILED(hr))
+	{
+		LOG(_T("获取IAudioSessionControl2接口失败"));
+		return;
+	}
+	// 获取会话进程ID
+	DWORD dwProcessId = 0;
+	hr = spSession2->GetProcessId(&dwProcessId);
+	if (FAILED(hr) || dwProcessId == 0)
+	{
+		LOG(_T("获取进程ID失败。"));
+		return;
+	}
+	// 获取IActivationFactory接口
+	IActivationFactory* pFactory = nullptr;
+	HSTRING CLSID_AudioPolicyConfig;
+	LPCWSTR szClsid = L"Windows.Media.Internal.AudioPolicyConfig";
+	hr = WindowsCreateString(szClsid, (UINT)wcslen(szClsid), &CLSID_AudioPolicyConfig);
+	if (FAILED(hr))
+	{
+		LOG(_T("构建CLSID_AudioPolicyConfig字符串失败。"));
+		return;
+	}
+	hr = RoGetActivationFactory(CLSID_AudioPolicyConfig, __uuidof(IActivationFactory), reinterpret_cast<void**>(&pFactory));
+	if (FAILED(hr))
+	{
+		LOG(_T("获取IActivationFactory接口失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		return;
+	}
+	// 获取IAudioPolicyConfig接口
+	IAudioPolicyConfig* pAudioPolicyConfig = nullptr;
+	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void**>(&pAudioPolicyConfig));
+	if (FAILED(hr))
+	{
+		LOG(_T("获取IAudioPolicyConfig接口失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		pFactory->Release();
+		return;
+	}
+	// 构建播放设备ID
+	HSTRING deviceId = nullptr;
+	CString strFullDeviceId = this->GenerateDeviceId(eRender, strDeviceId);
+	hr = WindowsCreateString(strFullDeviceId, strFullDeviceId.GetLength(), &deviceId);
+	if (FAILED(hr) || !deviceId)
+	{
+		LOG(_T("构建设备ID字符串失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		pAudioPolicyConfig->Release();
+		pFactory->Release();
+		return;
+	}
+// 设置会话默认播放设备
+	hr = pAudioPolicyConfig->SetPersistedDefaultAudioEndpoint(dwProcessId, eRender, eMultimedia, deviceId);
+	if (FAILED(hr) || !deviceId)
+	{
+		LOG(_T("设置当前播放设备ID失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		WindowsDeleteString(deviceId);
+		pAudioPolicyConfig->Release();
+		pFactory->Release();
+		return;
+	}
+	WindowsDeleteString(deviceId);
+	pAudioPolicyConfig->Release();
+	pFactory->Release();
 }

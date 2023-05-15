@@ -25,3 +25,5 @@ LAM_GetSessionVolume
 LAM_SetSessionVolume
 LAM_GetSessionMute
 LAM_SetSessionMute
+LAM_GetSessionPlaybackDevice
+LAM_SetSessionPlaybackDevice

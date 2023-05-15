@@ -227,3 +227,18 @@ BOOL WINAPI LAM_GetSessionMute(DWORD dwIndex)
 {
 	return g_audioManager.GetSessionMute((UINT)dwIndex);
 }
+
+
+// 获取会话播放设备
+DWORD WINAPI LAM_GetSessionPlaybackDevice(DWORD dwIndex)
+{
+	return g_audioManager.GetSessionPlaybackDevice(dwIndex);
+}
+
+
+
+// 设置会话播放设备
+void WINAPI LAM_SetSessionPlaybackDevice(DWORD dwSessionIndex, DWORD dwDeviceIndex)
+{
+	g_audioManager.SetSessionPlaybackDevice(dwSessionIndex, dwDeviceIndex);
+}

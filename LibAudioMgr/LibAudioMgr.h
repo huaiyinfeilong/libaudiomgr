@@ -231,3 +231,20 @@ LAM_GetSessionMute(
 );
 
 
+// 获取会话播放设备
+LIBAUDIOMGRAPI
+DWORD
+WINAPI
+LAM_GetSessionPlaybackDevice(
+	DWORD dwIndex
+);
+
+
+// 设置会话播放设备
+LIBAUDIOMGRAPI
+void
+WINAPI
+LAM_SetSessionPlaybackDevice(
+	DWORD dwSessionIndex,
+	DWORD dwDeviceIndex
+);
