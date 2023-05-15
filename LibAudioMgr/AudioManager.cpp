@@ -8,6 +8,9 @@
 #include <fstream>
 #include<Audioclient.h>
 #include <log4cxx/logger.h>
+#include <windows.foundation.h>
+#include <wrl/client.h>
+#include "AudioPolicyConfig.h"
 
 
 #define LIBAUDIOMGR_DEBUG
@@ -1173,4 +1176,61 @@ BOOL AudioManager::GetSessionMute(DWORD nIndex)
 		return FALSE;
 	}
 	return bMute;
+}
+
+
+// 获取会话当前播放设备
+DWORD AudioManager::GetSessionPlaybackDevice(DWORD dwIndex)
+{
+	// 参数检查
+	if (dwIndex < 0 || dwIndex >= this->GetSessionCount())
+	{
+		LOG(_T("参数错误。给定的索引超出了会话列表下标范围。"));
+		return -1;
+	}
+	// 通过IAudioSessionControl获取IAudioSessionControl2接口
+	CComPtr<IAudioSessionControl> spSession;
+	AUDIO_CONTROL_SESSION_ENTITY entity = this->GetSession(dwIndex);
+	spSession = entity.spObject;
+	CComPtr<IAudioSessionControl2> spSession2;
+	HRESULT hr = spSession->QueryInterface(__uuidof(IAudioSessionControl2),reinterpret_cast<void **>(&spSession2));
+	if (FAILED(hr))
+	{
+		LOG(_T("获取IAudioSessionControl2接口失败"));
+		return -1;
+	}
+	// 获取会话进程ID
+	DWORD dwProcessId = 0;
+	hr = spSession2->GetProcessId(&dwProcessId);
+	if (FAILED(hr) || dwProcessId == 0)
+	{
+		LOG(_T("获取进程ID失败。"));
+		return -1;
+	}
+	// 获取IAudioPolicyConfig接口
+	HSTRING CLSID_AudioPolicyConfig;
+	LPCWSTR szClsid = L"Windows.Media.Internal.AudioPolicyConfig";
+	hr = WindowsCreateString(szClsid, wcslen(szClsid),&CLSID_AudioPolicyConfig);
+	if (FAILED(hr))
+	{
+		LOG(_T("构建CLSID_AudioPolicyConfig字符串失败。"));
+		return -1;
+	}
+	IAudioPolicyConfig* pAudioPolicyConfig = nullptr;
+	hr = RoGetActivationFactory(CLSID_AudioPolicyConfig, __uuidof(IAudioPolicyConfig), reinterpret_cast<void **>(&pAudioPolicyConfig));
+	if (FAILED(hr))
+	{
+		LOG(_T("获取IAudioPolicyConfig接口失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		return -1;
+	}
+	// 获取当前播放设备ID
+	HSTRING deviceId = nullptr;
+	hr = pAudioPolicyConfig->GetPersistedDefaultAudioEndpoint(dwProcessId, eRender, eMultimedia, &deviceId);
+	if (FAILED(hr) || !deviceId)
+	{
+		LOG(_T("获取当前播放设备ID失败。"));
+		return -1;
+	}
+		return -1;
 }
