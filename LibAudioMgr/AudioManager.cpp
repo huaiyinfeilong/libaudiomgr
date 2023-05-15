@@ -174,16 +174,13 @@ void AudioManager::GetDevices(EDataFlow dataFlow, ERole eRole, std::vector<AUDIO
 		listDevice.push_back(entity);
 	}
 	CString strMessage = _T("\n");
-	if (dataFlow == eRender)
+	for (auto it = this->_listPlaybackDevice.begin(); it != this->_listPlaybackDevice.end(); it++)
 	{
-		for (auto it = this->_listPlaybackDevice.begin(); it != this->_listPlaybackDevice.end(); it++)
-		{
-			CString str;
-			str.Format(_T("deviceId=%s\nname=%s\n"), it->strId, it->strName);
-			strMessage += str;
-		}
-		LOG(strMessage);
-	}
+		CString str;
+		str.Format(_T("deviceId=%s\nname=%s\n"), this->GenerateDeviceId(dataFlow, it->strId), it->strName);
+		strMessage += str;
+}
+	LOG(strMessage);
 }
 
 
@@ -289,7 +286,7 @@ void AudioManager::SetSessionDevice(DWORD dwIndex, CComPtr<IMMDevice>& spDevice)
 		LOG(_T("获取IAudioSessionManager2接口失败。"));
 		return;
 	}
-	
+
 }
 
 
@@ -463,37 +460,27 @@ void AudioManager::GetAllSession()
 }
 
 
-// 通过进程ID获取窗口标题
-BOOL AudioManager::GetWindows(std::map<DWORD, CString>& context)
+// 构建用以音频会话所需的设备ID
+CString AudioManager::GenerateDeviceId(EDataFlow dataFlow, CString strDeviceId)
 {
-	DWORD dwProcessId = 0;
-	HWND hWnd = FindWindowEx(NULL, NULL, NULL, NULL);
-	while (hWnd != NULL)
+	static LPCWSTR DEVINTERFACE_AUDIO_RENDER = L"#{e6327cad-dcec-4949-ae8a-991e976a79d2}";
+	static LPCWSTR DEVINTERFACE_AUDIO_CAPTURE = L"#{2eef81be-33fa-4800-9670-1cd474972c3f}";
+	static LPCWSTR MMDEVAPI_TOKEN = L"\\\\?\\SWD#MMDEVAPI#";
+	CString strFullDeviceId = MMDEVAPI_TOKEN;
+	strFullDeviceId += strDeviceId;
+	if (dataFlow == eRender)
 	{
-		DWORD dwStyle = GetWindowStyle(hWnd);
-		if (!(dwStyle & (WS_OVERLAPPED | WS_POPUP)) || dwStyle & WS_DISABLED)
-		{
-			hWnd = FindWindowEx(NULL, hWnd, NULL, NULL);
-			continue;
-		}
-		GetWindowThreadProcessId(hWnd, &dwProcessId);
-		if (dwProcessId == 0)
-		{
-			hWnd = FindWindowEx(NULL, hWnd, NULL, NULL);
-			continue;
-		}
-		TCHAR szTitle[MAX_PATH] = { 0 };
-		GetWindowText(hWnd, szTitle, MAX_PATH);
-		if (!*szTitle)
-		{
-			hWnd = FindWindowEx(NULL, hWnd, NULL, NULL);
-			continue;
-		}
-		context.insert(std::pair<DWORD, CString>(dwProcessId, szTitle));
-		hWnd = FindWindowEx(NULL, hWnd, NULL, NULL);
+		strFullDeviceId += DEVINTERFACE_AUDIO_RENDER;
 	}
-
-	return TRUE;
+	else if (dataFlow == eCapture)
+	{
+		strFullDeviceId += DEVINTERFACE_AUDIO_CAPTURE;
+	}
+	else
+	{
+		return CString(_T(""));
+	}
+	return strFullDeviceId;
 }
 
 

@@ -97,8 +97,8 @@ protected:
 	void SetSessionDevice(DWORD dwIndex, CComPtr<IMMDevice>& spDevice);
 	// 获取所有会话
 	void GetAllSession();
-	// 获取所有顶级窗口
-	BOOL GetWindows(std::map<DWORD, CString>& context);
+	// 构建用以音频会话所需的设备ID
+	CString GenerateDeviceId(EDataFlow dataFlow, CString strDeviceId);
 	// 获取会话名称
 	BOOL GetSessionDisplayName(CComPtr<IAudioSessionControl2>& spSession, CString& strDisplayName);
 
