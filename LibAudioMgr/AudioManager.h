@@ -81,6 +81,8 @@ public:
 	void SetSessionPlaybackDevice(DWORD dwSessionIndex, DWORD dwDeviceIndex);
 	// 获取会话播放设备
 	DWORD GetSessionPlaybackDevice(DWORD dwIndex);
+	// 重置所有会话播放设备
+	void ResetAllSessionPlaybackDevice();
 	// 设置会话录音设备
 	void SetSessionRecordingDevice(DWORD dwSessionIndex, DWORD dwDeviceIndex);
 	// 获取会话录音设备

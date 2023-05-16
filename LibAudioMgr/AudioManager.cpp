@@ -182,7 +182,7 @@ void AudioManager::GetDevices(EDataFlow dataFlow, ERole eRole, std::vector<AUDIO
 		CString str;
 		str.Format(_T("deviceId=%s\nname=%s\n"), this->GenerateDeviceId(dataFlow, it->strId), it->strName);
 		strMessage += str;
-}
+	}
 	LOG(strMessage);
 }
 
@@ -199,6 +199,7 @@ void AudioManager::SetDefaultDevice(LPCTSTR lpDeviceId, ERole eRole)
 		LOG((LPCTSTR)strError);
 		return;
 	}
+	this->ResetAllSessionPlaybackDevice();
 	spConfig->SetDefaultEndpoint(lpDeviceId, eRole);
 }
 
@@ -1193,7 +1194,7 @@ DWORD AudioManager::GetSessionPlaybackDevice(DWORD dwIndex)
 	AUDIO_CONTROL_SESSION_ENTITY entity = this->GetSession(dwIndex);
 	spSession = entity.spObject;
 	CComPtr<IAudioSessionControl2> spSession2;
-	HRESULT hr = spSession->QueryInterface(__uuidof(IAudioSessionControl2),reinterpret_cast<void **>(&spSession2));
+	HRESULT hr = spSession->QueryInterface(__uuidof(IAudioSessionControl2), reinterpret_cast<void**>(&spSession2));
 	if (FAILED(hr))
 	{
 		LOG(_T("获取IAudioSessionControl2接口失败"));
@@ -1211,13 +1212,13 @@ DWORD AudioManager::GetSessionPlaybackDevice(DWORD dwIndex)
 	IActivationFactory* pFactory = nullptr;
 	HSTRING CLSID_AudioPolicyConfig;
 	LPCWSTR szClsid = L"Windows.Media.Internal.AudioPolicyConfig";
-	hr = WindowsCreateString(szClsid, (UINT)wcslen(szClsid),&CLSID_AudioPolicyConfig);
+	hr = WindowsCreateString(szClsid, (UINT)wcslen(szClsid), &CLSID_AudioPolicyConfig);
 	if (FAILED(hr))
 	{
 		LOG(_T("构建CLSID_AudioPolicyConfig字符串失败。"));
 		return -1;
 	}
-	hr = RoGetActivationFactory(CLSID_AudioPolicyConfig, __uuidof(IActivationFactory), reinterpret_cast<void **>(&pFactory));
+	hr = RoGetActivationFactory(CLSID_AudioPolicyConfig, __uuidof(IActivationFactory), reinterpret_cast<void**>(&pFactory));
 	if (FAILED(hr))
 	{
 		LOG(_T("获取IActivationFactory接口失败。"));
@@ -1226,7 +1227,7 @@ DWORD AudioManager::GetSessionPlaybackDevice(DWORD dwIndex)
 	}
 	// 获取IAudioPolicyConfig接口
 	IAudioPolicyConfig* pAudioPolicyConfig = nullptr;
-	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void **>(&pAudioPolicyConfig));
+	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void**>(&pAudioPolicyConfig));
 	if (FAILED(hr))
 	{
 		LOG(_T("获取IAudioPolicyConfig接口失败。"));
@@ -1334,7 +1335,7 @@ void AudioManager::SetSessionPlaybackDevice(DWORD dwSessionIndex, DWORD dwDevice
 		pFactory->Release();
 		return;
 	}
-// 设置会话默认播放设备
+	// 设置会话默认播放设备
 	hr = pAudioPolicyConfig->SetPersistedDefaultAudioEndpoint(dwProcessId, eRender, eMultimedia, deviceId);
 	if (FAILED(hr) || !deviceId)
 	{
@@ -1356,6 +1357,48 @@ void AudioManager::SetSessionPlaybackDevice(DWORD dwSessionIndex, DWORD dwDevice
 		return;
 	}
 	WindowsDeleteString(deviceId);
+	pAudioPolicyConfig->Release();
+	pFactory->Release();
+}
+
+
+// 重置所有会话播放设备
+void AudioManager::ResetAllSessionPlaybackDevice()
+{
+	// 获取IActivationFactory接口
+	HRESULT hr;
+	IActivationFactory* pFactory = nullptr;
+	HSTRING CLSID_AudioPolicyConfig;
+	LPCWSTR szClsid = L"Windows.Media.Internal.AudioPolicyConfig";
+	hr = WindowsCreateString(szClsid, (UINT)wcslen(szClsid), &CLSID_AudioPolicyConfig);
+	if (FAILED(hr))
+	{
+		LOG(_T("构建CLSID_AudioPolicyConfig字符串失败。"));
+		return;
+	}
+	hr = RoGetActivationFactory(CLSID_AudioPolicyConfig, __uuidof(IActivationFactory), reinterpret_cast<void**>(&pFactory));
+	if (FAILED(hr))
+	{
+		LOG(_T("获取IActivationFactory接口失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		return;
+	}
+	// 获取IAudioPolicyConfig接口
+	IAudioPolicyConfig* pAudioPolicyConfig = nullptr;
+	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void**>(&pAudioPolicyConfig));
+	if (FAILED(hr))
+	{
+		LOG(_T("获取IAudioPolicyConfig接口失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		pFactory->Release();
+		return;
+	}
+	hr = pAudioPolicyConfig->ClearAllPersistedApplicationDefaultEndpoints();
+	if (FAILED(hr))
+	{
+		LOG(_T("执行IAudioPolicyConfig::ClearAllPersistedApplicationDefaultEndpoints()失败。"));
+	}
+	WindowsDeleteString(CLSID_AudioPolicyConfig);
 	pAudioPolicyConfig->Release();
 	pFactory->Release();
 }
