@@ -1,0 +1,63 @@
+import "inspectable.idl";
+import "MMDeviceApi.idl";
+
+
+[
+	uuid(2a59116d-6c4f-45e0-a74f-707e3fef9258)
+]
+interface IAudioPolicyConfig: IInspectable
+{
+	HRESULT __incomplete__add_CtxVolumeChange();
+	HRESULT __incomplete__remove_CtxVolumeChanged();
+	HRESULT __incomplete__add_RingerVibrateStateChanged();
+	HRESULT __incomplete__remove_RingerVibrateStateChange();
+	HRESULT __incomplete__SetVolumeGroupGainForId();
+	HRESULT __incomplete__GetVolumeGroupGainForId();
+	HRESULT __incomplete__GetActiveVolumeGroupForEndpointId();
+	HRESULT __incomplete__GetVolumeGroupsForEndpoint();
+	HRESULT __incomplete__GetCurrentVolumeContext();
+	HRESULT __incomplete__SetVolumeGroupMuteForId();
+	HRESULT __incomplete__GetVolumeGroupMuteForId();
+	HRESULT __incomplete__SetRingerVibrateState();
+	HRESULT __incomplete__GetRingerVibrateState();
+	HRESULT __incomplete__SetPreferredChatApplication();
+	HRESULT __incomplete__ResetPreferredChatApplication();
+	HRESULT __incomplete__GetPreferredChatApplication();
+	HRESULT __incomplete__GetCurrentChatApplications();
+	HRESULT __incomplete__add_ChatContextChanged();
+	HRESULT __incomplete__remove_ChatContextChanged();
+
+		HRESULT SetPersistedDefaultAudioEndpoint([in] UINT processId, [in] EDataFlow flow, [in] ERole role, [in] HSTRING deviceId);
+		HRESULT GetPersistedDefaultAudioEndpoint([in] UINT processId, [in] EDataFlow flow, [in] ERole role, [out, retval] HSTRING* pDeviceId);
+		HRESULT ClearAllPersistedApplicationDefaultEndpoints();
+};
+
+[
+	uuid(ab3d4648-e242-459f-b02f-541c70306324)
+]
+interface IAudioPolicyConfig2: IInspectable
+{
+	HRESULT __incomplete__add_CtxVolumeChange();
+	HRESULT __incomplete__remove_CtxVolumeChanged();
+	HRESULT __incomplete__add_RingerVibrateStateChanged();
+	HRESULT __incomplete__remove_RingerVibrateStateChange();
+	HRESULT __incomplete__SetVolumeGroupGainForId();
+	HRESULT __incomplete__GetVolumeGroupGainForId();
+	HRESULT __incomplete__GetActiveVolumeGroupForEndpointId();
+	HRESULT __incomplete__GetVolumeGroupsForEndpoint();
+	HRESULT __incomplete__GetCurrentVolumeContext();
+	HRESULT __incomplete__SetVolumeGroupMuteForId();
+	HRESULT __incomplete__GetVolumeGroupMuteForId();
+	HRESULT __incomplete__SetRingerVibrateState();
+	HRESULT __incomplete__GetRingerVibrateState();
+	HRESULT __incomplete__SetPreferredChatApplication();
+	HRESULT __incomplete__ResetPreferredChatApplication();
+	HRESULT __incomplete__GetPreferredChatApplication();
+	HRESULT __incomplete__GetCurrentChatApplications();
+	HRESULT __incomplete__add_ChatContextChanged();
+	HRESULT __incomplete__remove_ChatContextChanged();
+
+		HRESULT SetPersistedDefaultAudioEndpoint([in] UINT processId, [in] EDataFlow flow, [in] ERole role, [in] HSTRING deviceId);
+		HRESULT GetPersistedDefaultAudioEndpoint([in] UINT processId, [in] EDataFlow flow, [in] ERole role, [out, retval] HSTRING* pDeviceId);
+		HRESULT ClearAllPersistedApplicationDefaultEndpoints();
+};

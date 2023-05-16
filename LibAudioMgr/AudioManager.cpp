@@ -1225,15 +1225,20 @@ DWORD AudioManager::GetSessionPlaybackDevice(DWORD dwIndex)
 		WindowsDeleteString(CLSID_AudioPolicyConfig);
 		return -1;
 	}
-	// 获取IAudioPolicyConfig接口
-	IAudioPolicyConfig* pAudioPolicyConfig = nullptr;
-	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void**>(&pAudioPolicyConfig));
+	// 获取IAudioPolicyConfig2接口
+	IAudioPolicyConfig2* pAudioPolicyConfig = nullptr;
+	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig2), reinterpret_cast<void**>(&pAudioPolicyConfig));
 	if (FAILED(hr))
 	{
-		LOG(_T("获取IAudioPolicyConfig接口失败。"));
-		WindowsDeleteString(CLSID_AudioPolicyConfig);
-		pFactory->Release();
-		return -1;
+		LOG(_T("获取IAudioPolicyConfig2接口失败，尝试获取IAudioPolicyConfig接口。"));
+		hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void**>(&pAudioPolicyConfig));
+		if (FAILED(hr))
+		{
+			LOG(_T("获取IAudioPolicyConfig接口失败。"));
+			WindowsDeleteString(CLSID_AudioPolicyConfig);
+			pFactory->Release();
+			return -1;
+		}
 	}
 	// 获取当前播放设备ID
 	HSTRING deviceId = nullptr;
@@ -1313,15 +1318,20 @@ void AudioManager::SetSessionPlaybackDevice(DWORD dwSessionIndex, DWORD dwDevice
 		WindowsDeleteString(CLSID_AudioPolicyConfig);
 		return;
 	}
-	// 获取IAudioPolicyConfig接口
-	IAudioPolicyConfig* pAudioPolicyConfig = nullptr;
-	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void**>(&pAudioPolicyConfig));
+	// 获取IAudioPolicyConfig2接口
+	IAudioPolicyConfig2* pAudioPolicyConfig = nullptr;
+	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig2), reinterpret_cast<void**>(&pAudioPolicyConfig));
 	if (FAILED(hr))
 	{
-		LOG(_T("获取IAudioPolicyConfig接口失败。"));
-		WindowsDeleteString(CLSID_AudioPolicyConfig);
-		pFactory->Release();
-		return;
+		LOG(_T("获取IAudioPolicyConfig2接口失败，尝试获取IAudioPolicyConfig接口。"));
+		hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void**>(&pAudioPolicyConfig));
+		if (FAILED(hr))
+		{
+			LOG(_T("获取IAudioPolicyConfig接口失败。"));
+			WindowsDeleteString(CLSID_AudioPolicyConfig);
+			pFactory->Release();
+			return;
+		}
 	}
 	// 构建播放设备ID
 	HSTRING deviceId = nullptr;
@@ -1383,20 +1393,25 @@ void AudioManager::ResetAllSessionPlaybackDevice()
 		WindowsDeleteString(CLSID_AudioPolicyConfig);
 		return;
 	}
-	// 获取IAudioPolicyConfig接口
-	IAudioPolicyConfig* pAudioPolicyConfig = nullptr;
-	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void**>(&pAudioPolicyConfig));
+	// 获取IAudioPolicyConfig2接口
+	IAudioPolicyConfig2* pAudioPolicyConfig = nullptr;
+	hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig2), reinterpret_cast<void**>(&pAudioPolicyConfig));
 	if (FAILED(hr))
 	{
-		LOG(_T("获取IAudioPolicyConfig接口失败。"));
-		WindowsDeleteString(CLSID_AudioPolicyConfig);
-		pFactory->Release();
-		return;
+		LOG(_T("获取IAudioPolicyConfig2接口失败，尝试获取IAudioPolicyConfig接口。"));
+		hr = pFactory->QueryInterface(__uuidof(IAudioPolicyConfig), reinterpret_cast<void**>(&pAudioPolicyConfig));
+		if (FAILED(hr))
+		{
+			LOG(_T("获取IAudioPolicyConfig接口失败。"));
+			WindowsDeleteString(CLSID_AudioPolicyConfig);
+			pFactory->Release();
+			return;
+		}
 	}
 	hr = pAudioPolicyConfig->ClearAllPersistedApplicationDefaultEndpoints();
 	if (FAILED(hr))
 	{
-		LOG(_T("执行IAudioPolicyConfig::ClearAllPersistedApplicationDefaultEndpoints()失败。"));
+		LOG(_T("执行IAudioPolicyConfig2::ClearAllPersistedApplicationDefaultEndpoints()失败。"));
 	}
 	WindowsDeleteString(CLSID_AudioPolicyConfig);
 	pAudioPolicyConfig->Release();
