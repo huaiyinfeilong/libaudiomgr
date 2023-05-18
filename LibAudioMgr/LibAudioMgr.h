@@ -248,3 +248,22 @@ LAM_SetSessionPlaybackDevice(
 	DWORD dwSessionIndex,
 	DWORD dwDeviceIndex
 );
+
+
+// 设置窗口静音
+LIBAUDIOMGRAPI
+void
+WINAPI
+LAM_SetWindowMute(
+	HWND hWnd,
+	BOOL bMute
+);
+
+
+// 获取窗口静音状态
+LIBAUDIOMGRAPI
+BOOL
+WINAPI
+LAM_GetWindowMute(
+	HWND hWnd
+);

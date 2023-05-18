@@ -12,17 +12,20 @@
 
 
 // 音频控制对象类型定义
-template <class _TypeT>
-struct AUDIO_CONTROL_ENTITY {
+struct AUDIO_CONTROL_DEVICE_ENTITY {
 	CString strId;
 	CString strName;
-	_TypeT spObject;
+	CComPtr<IMMDevice> spObject;
 };
 
 // 会话对象类型定义
-typedef AUDIO_CONTROL_ENTITY<CComPtr<IAudioSessionControl>> AUDIO_CONTROL_SESSION_ENTITY;
-// 设备对象类型定义
-typedef AUDIO_CONTROL_ENTITY<CComPtr<IMMDevice>> AUDIO_CONTROL_DEVICE_ENTITY;
+struct AUDIO_CONTROL_SESSION_ENTITY {
+	CString strId;
+	CString strName;
+	DWORD dwProcessId;
+	CComPtr<IAudioSessionControl> spObject;
+};
+
 
 
 // AudioManager 音频管理器类声明
@@ -87,8 +90,12 @@ public:
 	void SetSessionRecordingDevice(DWORD dwSessionIndex, DWORD dwDeviceIndex);
 	// 获取会话录音设备
 	DWORD GetSessionRecordingDevice(DWORD dwIndex);
+	// 设置窗口静音
+	void SetWindowMute(HWND hWnd, BOOL bMute);
+	// 获取窗口静音状态
+	BOOL GetWindowMute(HWND hWnd);
 
-protected:
+	protected:
 	// 根据类型获取设备列表
 	void GetDevices(EDataFlow dataFlow, ERole eRole, std::vector<AUDIO_CONTROL_DEVICE_ENTITY>& listDevice);
 	// 设置默认播放、录音设备

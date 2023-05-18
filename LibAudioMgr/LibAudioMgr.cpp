@@ -223,7 +223,7 @@ void WINAPI LAM_SetSessionMute(DWORD dwIndex, BOOL bMute)
 
 
 // 获取会话静音状态
-BOOL WINAPI LAM_GetSessionMute(DWORD dwIndex)		
+BOOL WINAPI LAM_GetSessionMute(DWORD dwIndex)
 {
 	return g_audioManager.GetSessionMute((UINT)dwIndex);
 }
@@ -241,4 +241,18 @@ DWORD WINAPI LAM_GetSessionPlaybackDevice(DWORD dwIndex)
 void WINAPI LAM_SetSessionPlaybackDevice(DWORD dwSessionIndex, DWORD dwDeviceIndex)
 {
 	g_audioManager.SetSessionPlaybackDevice(dwSessionIndex, dwDeviceIndex);
+}
+
+
+// 设置窗口静音
+void WINAPI LAM_SetWindowMute(HWND hWnd, BOOL bMute)
+{
+	g_audioManager.SetWindowMute(hWnd, bMute);
+}
+
+
+// 获取窗口静音状态
+BOOL WINAPI LAM_GetWindowMute(HWND hWnd)
+{
+	return g_audioManager.GetWindowMute(hWnd);
 }

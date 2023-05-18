@@ -448,6 +448,7 @@ void AudioManager::GetAllSession()
 			}
 			entity.strId = lpSessionId;
 			CoTaskMemFree(lpSessionId);
+			entity.dwProcessId = dwProcessId;
 			entity.spObject = spSession;
 			mapSession[dwProcessId] = entity;
 		}
@@ -1416,4 +1417,61 @@ void AudioManager::ResetAllSessionPlaybackDevice()
 	WindowsDeleteString(CLSID_AudioPolicyConfig);
 	pAudioPolicyConfig->Release();
 	pFactory->Release();
+}
+
+
+
+// 设置窗口静音
+void AudioManager::SetWindowMute(HWND hWnd, BOOL bMute)
+{
+	// 通过窗口句柄得到进程ID
+	DWORD dwProcessId = 0;
+	GetWindowThreadProcessId(hWnd, &dwProcessId);
+	if (dwProcessId == 0)
+	{
+		LOG(_T("执行GetWindowThreadProcessId()失败。"));
+		return;
+	}
+	// 通过进程ID找到会话对象
+	CString strMessage;
+	strMessage.Format(_T("当前前台窗口进程ID=%d"), dwProcessId);
+	LOG(strMessage);
+	for (auto it = this->_listSession.begin(); it != this->_listSession.end(); it++)
+	{
+		strMessage.Format(_T("会话名称=%s，会话进程ID=%d,会话索引=%d"), it->strName,it->dwProcessId, static_cast<DWORD>(std::distance(this->_listSession.begin(), it)));
+		LOG(strMessage);
+		if (it->dwProcessId == dwProcessId)
+		{
+			DWORD dwIndex = static_cast<DWORD>(std::distance(this->_listSession.begin(), it));
+			strMessage.Format(_T("根据进程ID找到会话“%s”，会话索引=%d"), it->strName, it->dwProcessId);
+			LOG(strMessage);
+			this->SetSessionMute(dwIndex, bMute);
+			return;
+		}
+	}
+	LOG(_T("没有找到会话。"));
+}
+
+
+// 获取窗口静音状态
+BOOL AudioManager::GetWindowMute(HWND hWnd)
+{
+	// 通过窗口句柄得到进程ID
+	DWORD dwProcessId = 0;
+	GetWindowThreadProcessId(hWnd, &dwProcessId);
+	if (dwProcessId == 0)
+	{
+		LOG(_T("执行GetWindowThreadProcessId()失败。"));
+		return FALSE;
+	}
+	// 通过进程ID找到会话对象
+	for (auto it = this->_listSession.begin(); it != this->_listSession.end(); it++)
+	{
+		if (it->dwProcessId == dwProcessId)
+		{
+			DWORD dwIndex = static_cast<DWORD>(std::distance(this->_listSession.begin(), it));
+			return this->GetSessionMute(dwIndex);
+		}
+	}
+	return FALSE;
 }
