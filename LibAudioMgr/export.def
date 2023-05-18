@@ -27,5 +27,8 @@ LAM_GetSessionMute
 LAM_SetSessionMute
 LAM_GetSessionPlaybackDevice
 LAM_SetSessionPlaybackDevice
+LAM_SetSessionRecordingDevice
+LAM_GetSessionRecordingDevice
+LAM_ResetAllSessionDevice
 LAM_SetWindowMute
 LAM_GetWindowMute

@@ -244,6 +244,27 @@ void WINAPI LAM_SetSessionPlaybackDevice(DWORD dwSessionIndex, DWORD dwDeviceInd
 }
 
 
+// 设置会话录音设备
+void WINAPI LAM_SetSessionRecordingDevice(DWORD dwSessionIndex, DWORD dwDeviceIndex)
+{
+	g_audioManager.SetSessionRecordingDevice(dwSessionIndex, dwDeviceIndex);
+}
+
+
+// 获取会话录音设备
+DWORD WINAPI LAM_GetSessionRecordingDevice(DWORD dwIndex)
+{
+	return g_audioManager.GetSessionRecordingDevice(dwIndex);
+}
+
+
+// 重置所有会话设备
+void WINAPI LAM_ResetAllSessionDevice()
+{
+	g_audioManager.ResetAllSessionDevice();
+}
+
+
 // 设置窗口静音
 void WINAPI LAM_SetWindowMute(HWND hWnd, BOOL bMute)
 {

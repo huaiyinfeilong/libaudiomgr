@@ -250,6 +250,33 @@ LAM_SetSessionPlaybackDevice(
 );
 
 
+// 设置会话录音设备
+LIBAUDIOMGRAPI
+void
+WINAPI
+LAM_SetSessionRecordingDevice(
+	DWORD dwSessionIndex,
+	DWORD dwDeviceIndex
+);
+
+
+// 获取会话录音设备
+LIBAUDIOMGRAPI
+DWORD
+WINAPI
+LAM_GetSessionRecordingDevice(
+	DWORD dwIndex
+);
+
+
+// 重置所有会话设备
+LIBAUDIOMGRAPI
+void
+WINAPI
+LAM_ResetAllSessionDevice(
+);
+
+
 // 设置窗口静音
 LIBAUDIOMGRAPI
 void
