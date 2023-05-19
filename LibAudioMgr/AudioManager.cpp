@@ -176,14 +176,6 @@ void AudioManager::GetDevices(EDataFlow dataFlow, ERole eRole, std::vector<AUDIO
 		entity.spObject = spDevice;
 		listDevice.push_back(entity);
 	}
-	CString strMessage = _T("\n");
-	for (auto it = this->_listPlaybackDevice.begin(); it != this->_listPlaybackDevice.end(); it++)
-	{
-		CString str;
-		str.Format(_T("deviceId=%s\nname=%s\n"), this->GenerateDeviceId(dataFlow, it->strId), it->strName);
-		strMessage += str;
-	}
-	LOG(strMessage);
 }
 
 
@@ -452,15 +444,10 @@ void AudioManager::GetAllSession()
 			mapSession[dwProcessId] = entity;
 		}
 	}
-	CString strMessage = _T("\n");
 	for (auto it = mapSession.begin(); it != mapSession.end(); it++)
 	{
 		this->_listSession.push_back(it->second);
-		CString str = _T("");
-		str.Format(_T("dwProcessId=%d\nsessionId=%s\ndisplayName=%s\n"), it->first, it->second.strId, it->second.strName);
-		strMessage += str;
 	}
-	LOG((LPCTSTR)strMessage);
 }
 
 
@@ -1368,6 +1355,16 @@ void AudioManager::SetSessionPlaybackDevice(DWORD dwSessionIndex, DWORD dwDevice
 		return;
 	}
 	WindowsDeleteString(deviceId);
+	hr = pAudioPolicyConfig->SetPersistedDefaultAudioEndpoint(dwProcessId, eRender, eCommunications, deviceId);
+	if (FAILED(hr) || !deviceId)
+	{
+		LOG(_T("设置当前播放设备ID失败。"));
+		WindowsDeleteString(CLSID_AudioPolicyConfig);
+		WindowsDeleteString(deviceId);
+		pAudioPolicyConfig->Release();
+		pFactory->Release();
+		return;
+	}
 	pAudioPolicyConfig->Release();
 	pFactory->Release();
 }
@@ -1473,7 +1470,7 @@ void AudioManager::SetSessionRecordingDevice(DWORD dwSessionIndex, DWORD dwDevic
 			return;
 		}
 	}
-	// 构建播放设备ID
+	// 构建录音设备ID
 	HSTRING deviceId = nullptr;
 	CString strFullDeviceId = this->GenerateDeviceId(eCapture, strDeviceId);
 	hr = WindowsCreateString(strFullDeviceId, strFullDeviceId.GetLength(), &deviceId);
@@ -1486,26 +1483,28 @@ void AudioManager::SetSessionRecordingDevice(DWORD dwSessionIndex, DWORD dwDevic
 		return;
 	}
 	// 设置会话默认录音设备
-	hr = pAudioPolicyConfig->SetPersistedDefaultAudioEndpoint(dwProcessId, eCapture, eConsole, deviceId);
-	if (FAILED(hr) || !deviceId)
+	hr = pAudioPolicyConfig->SetPersistedDefaultAudioEndpoint(dwProcessId, eCapture, eMultimedia, deviceId);
+	if (FAILED(hr))
 	{
-		LOG(_T("设置当前录音设备ID失败。"));
-		WindowsDeleteString(CLSID_AudioPolicyConfig);
-		WindowsDeleteString(deviceId);
-		pAudioPolicyConfig->Release();
-		pFactory->Release();
-		return;
+		CString strMessage;
+		strMessage.Format(_T("设置会话录音设备失败。错误码=0x%x"), hr);
+		LOG(strMessage);
 	}
 	hr = pAudioPolicyConfig->SetPersistedDefaultAudioEndpoint(dwProcessId, eCapture, eCommunications, deviceId);
-	if (FAILED(hr) || !deviceId)
+	if (FAILED(hr))
 	{
-		LOG(_T("设置当前录音设备ID失败。"));
-		WindowsDeleteString(CLSID_AudioPolicyConfig);
-		WindowsDeleteString(deviceId);
-		pAudioPolicyConfig->Release();
-		pFactory->Release();
-		return;
+		CString strMessage;
+		strMessage.Format(_T("设置会话录音设备失败。错误码=0x%x"), hr);
+		LOG(strMessage);
 	}
+	hr = pAudioPolicyConfig->SetPersistedDefaultAudioEndpoint(dwProcessId, eCapture, eConsole, deviceId);
+	if (FAILED(hr))
+	{
+		CString strMessage;
+		strMessage.Format(_T("设置会话录音设备失败。错误码=0x%x"), hr);
+		LOG(strMessage);
+	}
+	// 会话录音设备设置完成，释放资源
 	WindowsDeleteString(deviceId);
 	pAudioPolicyConfig->Release();
 	pFactory->Release();
@@ -1563,10 +1562,10 @@ DWORD AudioManager::GetSessionRecordingDevice(DWORD dwIndex)
 	}
 	// 获取当前录音设备ID
 	HSTRING deviceId = nullptr;
-	hr = pAudioPolicyConfig->GetPersistedDefaultAudioEndpoint(dwProcessId, eCapture, eCommunications, &deviceId);
+	hr = pAudioPolicyConfig->GetPersistedDefaultAudioEndpoint(dwProcessId, eCapture, eMultimedia, &deviceId);
 	if (FAILED(hr) || !deviceId)
 	{
-		LOG(_T("获取当前录音设备ID失败。"));
+		LOG(_T("获取会话录音设备ID失败。"));
 		WindowsDeleteString(CLSID_AudioPolicyConfig);
 		pAudioPolicyConfig->Release();
 		pFactory->Release();
@@ -1574,14 +1573,17 @@ DWORD AudioManager::GetSessionRecordingDevice(DWORD dwIndex)
 	}
 	CString strDeviceId(WindowsGetStringRawBuffer(deviceId, nullptr), WindowsGetStringLen(deviceId));
 	WindowsDeleteString(deviceId);
-	for (auto it = this->_listPlaybackDevice.begin(); it != this->_listPlaybackDevice.end(); it++)
+	CString strMessage;
+	strMessage.Format(_T("当前会话录音设备ID=%s"), strDeviceId);
+	LOG(strMessage);
+	for (auto it = this->_listRecordingDevice.begin(); it != this->_listRecordingDevice.end(); it++)
 	{
 		if (strDeviceId.Find(it->strId) >= 0)
 		{
 			LOG(_T("找到当前录音设备。"));
 			pAudioPolicyConfig->Release();
 			pFactory->Release();
-			return static_cast<DWORD>(std::distance(this->_listPlaybackDevice.begin(), it));
+			return static_cast<DWORD>(std::distance(this->_listRecordingDevice.begin(), it));
 		}
 	}
 	pAudioPolicyConfig->Release();
@@ -1602,18 +1604,11 @@ void AudioManager::SetWindowMute(HWND hWnd, BOOL bMute)
 		return;
 	}
 	// 通过进程ID找到会话对象
-	CString strMessage;
-	strMessage.Format(_T("当前前台窗口进程ID=%d"), dwProcessId);
-	LOG(strMessage);
 	for (auto it = this->_listSession.begin(); it != this->_listSession.end(); it++)
 	{
-		strMessage.Format(_T("会话名称=%s，会话进程ID=%d,会话索引=%d"), it->strName,it->dwProcessId, static_cast<DWORD>(std::distance(this->_listSession.begin(), it)));
-		LOG(strMessage);
 		if (it->dwProcessId == dwProcessId)
 		{
 			DWORD dwIndex = static_cast<DWORD>(std::distance(this->_listSession.begin(), it));
-			strMessage.Format(_T("根据进程ID找到会话“%s”，会话索引=%d"), it->strName, it->dwProcessId);
-			LOG(strMessage);
 			this->SetSessionMute(dwIndex, bMute);
 			return;
 		}
