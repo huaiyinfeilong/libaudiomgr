@@ -320,8 +320,6 @@ void AudioManager::GetAllSession()
 		LOG(_T("Get default device failed."));
 		return;
 	}
-	// 设备是否为当前默认设备
-	BOOL bDefaultDevice = FALSE;
 	for (DWORD i = 0; i < uDeviceCount; i++)
 	{
 		CComPtr<IMMDevice> spDevice;
@@ -382,7 +380,7 @@ void AudioManager::GetAllSession()
 			}
 			DWORD dwProcessId = 0;
 			hr = spSession2->GetProcessId(&dwProcessId);
-			if (FAILED(hr) || dwProcessId == 0)
+			if (FAILED(hr))
 			{
 				LOG(_T("Get the process IDof the session is failed."));
 				continue;
@@ -392,31 +390,6 @@ void AudioManager::GetAllSession()
 			{
 				continue;
 			}
-			LPWSTR lpwDefaultDeviceId = nullptr;
-			LPWSTR lpwCurrentDeviceId = nullptr;
-			hr = spDefaultDevice->GetId(&lpwDefaultDeviceId);
-			if (FAILED(hr))
-			{
-				LOG(_T("Get default device id failed."));
-				continue;
-			}
-			hr = spDevice->GetId(&lpwCurrentDeviceId);
-			if (FAILED(hr))
-			{
-				LOG(_T("Get current device id failed."));
-				CoTaskMemFree(lpwDefaultDeviceId);
-				continue;
-			}
-			if (_tcscmp(lpwDefaultDeviceId, lpwCurrentDeviceId))
-			{
-				bDefaultDevice = FALSE;
-			}
-			else
-			{
-				bDefaultDevice = TRUE;
-			}
-			CoTaskMemFree(lpwDefaultDeviceId);
-			CoTaskMemFree(lpwCurrentDeviceId);
 			AUDIO_CONTROL_SESSION_ENTITY entity;
 			if (spSession2->IsSystemSoundsSession() != S_FALSE)
 			{
@@ -845,7 +818,7 @@ FLOAT AudioManager::GetSessionVolume(DWORD nIndex)
 // 设置会话音量
 void AudioManager::SetSessionVolume(DWORD nIndex, FLOAT fVolume)
 {
-	DWORD count = this->GetPlaybackDeviceCount();
+	DWORD count = this->GetSessionCount();
 	if (nIndex >= count)
 	{
 		LOG(_T("Parameter error."));
@@ -1428,7 +1401,7 @@ void AudioManager::SetSessionRecordingDevice(DWORD dwSessionIndex, DWORD dwDevic
 		return;
 	}
 	// 获取播放设备ID
-	AUDIO_CONTROL_DEVICE_ENTITY deviceEntity = this->GetPlaybackDevice(dwDeviceIndex);
+	AUDIO_CONTROL_DEVICE_ENTITY deviceEntity = this->GetRecordingDevice(dwDeviceIndex);
 	CString strDeviceId = deviceEntity.strId;
 	CComPtr<IAudioSessionControl> spSession;
 	AUDIO_CONTROL_SESSION_ENTITY sessionEntity = this->GetSession(dwSessionIndex);
