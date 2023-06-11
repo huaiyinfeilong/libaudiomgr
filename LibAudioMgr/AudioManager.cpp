@@ -13,7 +13,7 @@
 #include "AudioPolicyConfig.h"
 
 
-#define LIBAUDIOMGR_DEBUG
+//#define LIBAUDIOMGR_DEBUG
 
 #define LOG(msg) write_log(_T("D:\\log.txt"), _T(__FILE__), __LINE__, _T(__FUNCTION__), msg)
 
@@ -453,10 +453,9 @@ BOOL AudioManager::GetSessionDisplayName(CComPtr<IAudioSessionControl2>& spSessi
 {
 	LPTSTR lpDisplayName = nullptr;
 	HRESULT hr = spSession->GetDisplayName(&lpDisplayName);
-	if (FAILED(hr) || lpDisplayName == nullptr)
+	if (FAILED(hr))
 	{
 		LOG(_T("IAudioSessionController2::GetDisplayName failed."));
-		return FALSE;
 	}
 	// 成功获取到名称
 	if (*lpDisplayName)
@@ -473,7 +472,7 @@ BOOL AudioManager::GetSessionDisplayName(CComPtr<IAudioSessionControl2>& spSessi
 	// 获取进程ID
 	DWORD dwProcessId = 0;
 	hr = spSession->GetProcessId(&dwProcessId);
-	if (FAILED(hr) || dwProcessId == 0)
+	if (FAILED(hr))
 	{
 		LOG(_T("Get process ID of the session failed."));
 		return FALSE;
@@ -498,46 +497,44 @@ BOOL AudioManager::GetSessionDisplayName(CComPtr<IAudioSessionControl2>& spSessi
 	DWORD dwSize = 0;
 	DWORD dwHandle = 0;
 	dwSize = GetFileVersionInfoSize(szExePath, &dwHandle);
-	if (dwSize == 0)
+	if (dwSize != 0)
 	{
-		LOG(_T("GetFileVersionInfoSize failed."));
-		return FALSE;
-	}
-	LPVOID lpBuffer = new BYTE[dwSize];
-	ZeroMemory(lpBuffer, dwSize);
-	if (!GetFileVersionInfo(szExePath, dwHandle, dwSize, lpBuffer))
-	{
-		delete[]lpBuffer;
-		LOG(_T("GetFileVersionInfo failed."));
-		return FALSE;
-	}
-	dwLength = 0;
-	// 获取语言和字符集代码
-	LPVOID lpLangCode = nullptr;
-	if (VerQueryValue(lpBuffer, TEXT("\\VarFileInfo\\Translation"), &lpLangCode, (PUINT)&dwLength))
-	{
-		// 构建产品名称查询字符串
-		TCHAR szQuery[MAX_PATH] = { 0 };
-		_stprintf_s(szQuery, MAX_PATH, TEXT("\\StringFileInfo\\%.4x%.4x\\ProductName"), LOWORD((DWORD)(*(LPDWORD)lpLangCode)), HIWORD((DWORD)(*(LPDWORD)lpLangCode)));
-		// 获取产品名称
-		LPVOID lpProductName = nullptr;
-		if (VerQueryValue(lpBuffer, szQuery, &lpProductName, (PUINT)&dwLength))
+		LPVOID lpBuffer = new BYTE[dwSize];
+		ZeroMemory(lpBuffer, dwSize);
+		if (!GetFileVersionInfo(szExePath, dwHandle, dwSize, lpBuffer))
 		{
-			strDisplayName = (LPTSTR)lpProductName;
 			delete[]lpBuffer;
-			return TRUE;
+			LOG(_T("GetFileVersionInfo failed."));
+			return FALSE;
 		}
-		// 构建文件描述查询字符串
-		_stprintf_s(szQuery, MAX_PATH, TEXT("\\StringFileInfo\\%.4x%.4x\\FileDescription"), LOWORD((DWORD)(*(LPDWORD)lpLangCode)), HIWORD((DWORD)(*(LPDWORD)lpLangCode)));
-		// 获取文件描述
-		LPVOID lpFileDescription = nullptr;
-		if (VerQueryValue(lpBuffer, szQuery, &lpFileDescription, (PUINT)&dwLength))
+		dwLength = 0;
+		// 获取语言和字符集代码
+		LPVOID lpLangCode = nullptr;
+		if (VerQueryValue(lpBuffer, TEXT("\\VarFileInfo\\Translation"), &lpLangCode, (PUINT)&dwLength))
 		{
-			strDisplayName = (LPTSTR)lpFileDescription;
+			// 构建产品名称查询字符串
+			TCHAR szQuery[MAX_PATH] = { 0 };
+			_stprintf_s(szQuery, MAX_PATH, TEXT("\\StringFileInfo\\%.4x%.4x\\ProductName"), LOWORD((DWORD)(*(LPDWORD)lpLangCode)), HIWORD((DWORD)(*(LPDWORD)lpLangCode)));
+			// 获取产品名称
+			LPVOID lpProductName = nullptr;
+			if (VerQueryValue(lpBuffer, szQuery, &lpProductName, (PUINT)&dwLength))
+			{
+				strDisplayName = (LPTSTR)lpProductName;
+				delete[]lpBuffer;
+				return TRUE;
+			}
+			// 构建文件描述查询字符串
+			_stprintf_s(szQuery, MAX_PATH, TEXT("\\StringFileInfo\\%.4x%.4x\\FileDescription"), LOWORD((DWORD)(*(LPDWORD)lpLangCode)), HIWORD((DWORD)(*(LPDWORD)lpLangCode)));
+			// 获取文件描述
+			LPVOID lpFileDescription = nullptr;
+			if (VerQueryValue(lpBuffer, szQuery, &lpFileDescription, (PUINT)&dwLength))
+			{
+				strDisplayName = (LPTSTR)lpFileDescription;
+				delete[]lpBuffer;
+				return TRUE;
+			}
 			delete[]lpBuffer;
-			return TRUE;
 		}
-		delete[]lpBuffer;
 	}
 	CString strExePath = szExePath;
 	DWORD dwLeft = strExePath.ReverseFind(TEXT('\\'));
