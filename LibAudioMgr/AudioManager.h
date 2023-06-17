@@ -95,7 +95,7 @@ public:
 	// 获取窗口静音状态
 	BOOL GetWindowMute(HWND hWnd);
 
-	protected:
+protected:
 	// 根据类型获取设备列表
 	void GetDevices(EDataFlow dataFlow, ERole eRole, std::vector<AUDIO_CONTROL_DEVICE_ENTITY>& listDevice);
 	// 设置默认播放、录音设备
@@ -110,6 +110,9 @@ public:
 	CString GenerateDeviceId(EDataFlow dataFlow, CString strDeviceId);
 	// 获取会话名称
 	BOOL GetSessionDisplayName(CComPtr<IAudioSessionControl2>& spSession, CString& strDisplayName);
+	// 获取进程窗口标题
+	void GetProcessWindowTitle(DWORD dwProcessId, CString& strTitle);
+	static BOOL CALLBACK WndEnumProc(HWND hWnd, LPARAM lParam);
 
 protected:
 	// 输出设备
@@ -118,5 +121,6 @@ protected:
 	std::vector<AUDIO_CONTROL_DEVICE_ENTITY> _listRecordingDevice;
 	// 应用程序会话列表
 	std::vector<AUDIO_CONTROL_SESSION_ENTITY> _listSession;
+	std::map<DWORD, DWORD> m_mapProcessThreadId;
 };
 

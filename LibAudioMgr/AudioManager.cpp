@@ -11,15 +11,16 @@
 #include <windows.foundation.h>
 #include <wrl/client.h>
 #include "AudioPolicyConfig.h"
+#include <TlHelp32.h>
 
 
-//#define LIBAUDIOMGR_DEBUG
+#define LIBAUDIOMGR_DEBUG
 
 #define LOG(msg) write_log(_T("D:\\log.txt"), _T(__FILE__), __LINE__, _T(__FUNCTION__), msg)
 
 log4cxx::LoggerPtr logger = log4cxx::Logger::getRootLogger();
 
-void write_log(const wchar_t* logfilename, const wchar_t* filename, size_t line, const wchar_t* function, const wchar_t* message)
+void write_log(const wchar_t* logfilename, const wchar_t* filename, size_t line, const wchar_t* function, std::wstring message)
 {
 #ifndef LIBAUDIOMGR_DEBUG
 	return;
@@ -458,17 +459,21 @@ BOOL AudioManager::GetSessionDisplayName(CComPtr<IAudioSessionControl2>& spSessi
 		LOG(_T("IAudioSessionController2::GetDisplayName failed."));
 	}
 	// 成功获取到名称
-	if (*lpDisplayName)
+	if (lpDisplayName)
 	{
-		LOG(lpDisplayName);
-		strDisplayName = lpDisplayName;
-		CoTaskMemFree(lpDisplayName);
-		return TRUE;
+		if (*lpDisplayName)
+		{
+			LOG(lpDisplayName);
+			strDisplayName = lpDisplayName;
+			CoTaskMemFree(lpDisplayName);
+			return TRUE;
+		}
+		else
+		{
+			CoTaskMemFree(lpDisplayName);
+		}
 	}
-	// 获取名称失败，尝试获取exe文件描述字段
-	// 首先通过进程ID获取进程完整路径
-	// 然后通过进程完整路径得到文件信息中的文件描述字段内容
-	CoTaskMemFree(lpDisplayName);
+	// 获取名称失败，尝试获取窗口标题
 	// 获取进程ID
 	DWORD dwProcessId = 0;
 	hr = spSession->GetProcessId(&dwProcessId);
@@ -477,6 +482,16 @@ BOOL AudioManager::GetSessionDisplayName(CComPtr<IAudioSessionControl2>& spSessi
 		LOG(_T("Get process ID of the session failed."));
 		return FALSE;
 	}
+	CString strTitle;
+	GetProcessWindowTitle(dwProcessId, strTitle);
+	if (!strTitle.IsEmpty())
+	{
+		strDisplayName = strTitle;
+		return TRUE;
+	}
+	// 获取名称失败，尝试获取exe文件描述字段
+	// 首先通过进程ID获取进程完整路径
+	// 然后通过进程完整路径得到文件信息中的文件描述字段内容
 	// 通过进程ID得到进程路径
 	HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, dwProcessId);
 	if (hProcess == NULL)
@@ -1458,21 +1473,21 @@ void AudioManager::SetSessionRecordingDevice(DWORD dwSessionIndex, DWORD dwDevic
 	{
 		CString strMessage;
 		strMessage.Format(_T("设置会话录音设备失败。错误码=0x%x"), hr);
-		LOG(strMessage);
+		LOG((LPCTSTR)strMessage);
 	}
 	hr = pAudioPolicyConfig->SetPersistedDefaultAudioEndpoint(dwProcessId, eCapture, eCommunications, deviceId);
 	if (FAILED(hr))
 	{
 		CString strMessage;
 		strMessage.Format(_T("设置会话录音设备失败。错误码=0x%x"), hr);
-		LOG(strMessage);
+		LOG((LPCTSTR)strMessage);
 	}
 	hr = pAudioPolicyConfig->SetPersistedDefaultAudioEndpoint(dwProcessId, eCapture, eConsole, deviceId);
 	if (FAILED(hr))
 	{
 		CString strMessage;
 		strMessage.Format(_T("设置会话录音设备失败。错误码=0x%x"), hr);
-		LOG(strMessage);
+		LOG((LPCTSTR)strMessage);
 	}
 	// 会话录音设备设置完成，释放资源
 	WindowsDeleteString(deviceId);
@@ -1545,7 +1560,7 @@ DWORD AudioManager::GetSessionRecordingDevice(DWORD dwIndex)
 	WindowsDeleteString(deviceId);
 	CString strMessage;
 	strMessage.Format(_T("当前会话录音设备ID=%s"), strDeviceId);
-	LOG(strMessage);
+	LOG((LPCTSTR)strMessage);
 	for (auto it = this->_listRecordingDevice.begin(); it != this->_listRecordingDevice.end(); it++)
 	{
 		if (strDeviceId.Find(it->strId) >= 0)
@@ -1608,4 +1623,69 @@ BOOL AudioManager::GetWindowMute(HWND hWnd)
 		}
 	}
 	return FALSE;
+}
+
+
+
+void AudioManager::GetProcessWindowTitle(DWORD dwProcessId, CString& strTitle)
+{
+	LOG4CXX_INFO(logger, _T("进程ID=") << dwProcessId);
+	DWORD dwThreadId = 0;
+	if (m_mapProcessThreadId.find(dwProcessId) != m_mapProcessThreadId.end())
+	{
+		dwThreadId = m_mapProcessThreadId[dwProcessId];
+		LOG4CXX_INFO(logger, _T("找到进程") << dwProcessId << _T("缓存线程ID") << dwThreadId);
+	}
+	if (dwThreadId == 0)
+	{
+		LOG4CXX_INFO(logger, _T("没有找到进程") << dwProcessId << _T("的线程缓存"));
+		HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, dwProcessId);
+		if (hSnapshot == INVALID_HANDLE_VALUE)
+		{
+			LOG4CXX_INFO(logger, _T("创建线程快照失败，错误码=0x") << std::hex << GetLastError());
+			return;
+		}
+		THREADENTRY32 threadEntry = { 0 };
+		threadEntry.dwSize = sizeof(THREADENTRY32);
+		if (!Thread32First(hSnapshot, &threadEntry))
+		{
+			LOG4CXX_INFO(logger, _T("获取快照中的首个线程失败，错误码=0x") << std::hex << GetLastError());
+			CloseHandle(hSnapshot);
+			return;
+		}
+		do
+		{
+			if (threadEntry.th32OwnerProcessID == dwProcessId)
+			{
+				LOG4CXX_INFO(logger, _T("找到进程") << dwProcessId << _T("的主线程%d") << threadEntry.th32ThreadID);
+				dwThreadId = threadEntry.th32ThreadID;
+				m_mapProcessThreadId[dwProcessId] = dwThreadId;
+				break;
+			}
+		} while (Thread32Next(hSnapshot, &threadEntry));
+		CloseHandle(hSnapshot);
+		LOG4CXX_INFO(logger, _T("关闭线程快照"));
+	}
+	if (dwThreadId != 0)
+	{
+		EnumThreadWindows(dwThreadId, &AudioManager::WndEnumProc, (LPARAM)&strTitle);
+	}
+}
+
+
+BOOL CALLBACK AudioManager::WndEnumProc(HWND hWnd, LPARAM lParam)
+{
+	CString* pStr = (CString*)lParam;
+	if (pStr != nullptr)
+	{
+		TCHAR szText[MAX_PATH] = { 0 };
+		GetWindowText(hWnd, szText, MAX_PATH);
+		if (IsWindowVisible(hWnd) && *szText)
+		{
+			*pStr = szText;
+			return FALSE;
+		}
+	}
+
+	return TRUE;
 }
